@@ -1,10 +1,8 @@
-package iap
+package auth
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
+	"crypto/sha256"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -14,72 +12,62 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-type Reply func(ctx context.Context, w http.ResponseWriter, response io.Reader, status int)
-
-// helper function for marshaling good json responses
-func APIOK(response interface{}) (io.Reader, int) {
-	data, err := json.Marshal(response)
-	if err != nil {
-		return APIError("unable marshal response: "+err.Error(), http.StatusInternalServerError)
-	}
-	resp := bytes.NewBuffer(data)
-	return resp, http.StatusOK
-}
-
-// helper function for marshaling bad json responses
-func APIError(errmsg string, status int) (io.Reader, int) {
-	apierr := struct {
-		Message string `json:"message"`
-	}{errmsg}
-
-	data, _ := json.Marshal(apierr)
-	resp := bytes.NewBuffer(data)
-	return resp, status
-}
-
 // AuthenticationHandler receives receipt and verifies it. Uses receipt for authenticate and authorize the user.
 // If successfully returns access token
-func AuthenticationHandler(reply Reply, secret []byte, period time.Duration, rs iap.ReceiptService) http.HandlerFunc {
+func AuthenticationHandler(secret []byte, period time.Duration, rs iap.ReceiptService, knownBundles ...string) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		bundleID, deviceID, receipt, errmsg := authParams(r)
 		if errmsg != "" {
-			reply(ctx, w, APIError(errmsg, http.StatusBadRequest))
+			ReplyError(ctx, w, errmsg, http.StatusBadRequest)
 			return
 		}
 
+		// validate bundle id
+		if len(knownBundles) > 1 && !stringInSlice(bundleID, knownBundles) {
+			ReplyError(ctx, w, "unregistered bundle", http.StatusForbidden)
+			return
+		}
+
+		// get active or free subscription, no expired or canceled can be returned by following method.
 		subscriptions, err := rs.GetAutoRenewableIAPs(ctx, receipt)
 		if err != nil {
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
-			msg := "unexpected problem during receipt verifying: " + err.Error()
-			reply(ctx, w, APIError(errmsg, http.StatusInternalServerError))
+			errmsg := "unexpected problem during receipt verifying: " + err.Error()
+			ReplyError(ctx, w, errmsg, http.StatusInternalServerError)
+			return
+		}
+		if len(subscriptions) == 0 {
+			ReplyError(ctx, w, "no active subscriptions", http.StatusForbidden)
 			return
 		}
 
-		// do some business logic.
-		// Assume we could have one active auto-renewable subscription.
-		var endDate time.Time
-		for _, sbs := range subscriptions {
-			if sbs.State != iap.AROk {
-				continue
-			}
-			endDate = sbs.SubscriptionExpirationDate.Time
-		}
+		// in general you could have more than one auto-renewable subscription.
+		// but in this middleware we assume it's only one.
+		sbs := subscriptions[0]
+		expireSubscription := sbs.SubscriptionExpirationDate.Time
 
 		// set token expire date no more than subscription expiration.
-		expire := time.Now().Add(period)
-		if expire.After(endDate) {
-			endDate = expire
+		expireToken := time.Now().Add(period)
+		if expireToken.After(expireSubscription) {
+			expireToken = expireSubscription
 		}
+
+		// calculate user id:
+		// use OriginalTransactionID as base for user id
+		// todo:
+		// clarify uncertainty:
+		// 1) OriginalTransactionID may not be unique if user has canceled purchase. Solution - add OriginalPurchaseDate (simple)
+		// 2) OriginalTransactionID may not be unique across multiple devices (or even behave like identifierForVendor ). Solution - involve WebOrderLineItemID (hard)
+		userID := sha256.Sum256([]byte(sbs.OriginalTransactionID + sbs.OriginalPurchaseDate.String()))
 
 		// write claims: token body
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"bundleid": bundleID,
-			"deviceid": deviceID,
-			"enddate":  endDate,
-			"expire":   expire,
+			"userid":  userID,
+			"enddate": expireSubscription,
+			"expire":  expireToken,
 		})
 
 		// Sign and get the complete encoded token as a string using the secret
@@ -87,17 +75,17 @@ func AuthenticationHandler(reply Reply, secret []byte, period time.Duration, rs 
 		if err != nil {
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
-			msg := "unable to create auth token: " + err.Error()
-			reply(ctx, w, APIError(errmsg, http.StatusInternalServerError))
+			errmsg := "unable to create auth token: " + err.Error()
+			ReplyError(ctx, w, errmsg, http.StatusInternalServerError)
 			return
 		}
 
 		response := map[string]string{
 			"access_token": tokenString,
 			"token_type":   "Bearer",
-			"expire_date":  Expire,
+			"expire_date":  expireToken.String(),
 		}
-		reply(ctx, w, APIOK(response))
+		ReplyOk(ctx, w, response)
 	})
 }
 
@@ -130,16 +118,27 @@ func authParams(r *http.Request) (bundleID, deviceID string, receipt []byte, err
 	return bundleID, deviceID, receipt, ""
 }
 
+// this is so widely used function.
+// wonder why it's not in std lib yet.
+func stringInSlice(a string, list []string) bool {
+	for _, b := range list {
+		if b == a {
+			return true
+		}
+	}
+	return false
+}
+
 // IntrospectHandler verifies access token.
 // It forbids or requests authorization if token is invalid.
-func IntrospectHandler(reply Reply, handler http.Handler, secret string) http.HandlerFunc {
+func IntrospectHandler(handler http.Handler, secret string) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		tokenString, errmsg := introParams(r)
 		if errmsg != "" {
 			w.Header().Set("WWW-Authenticate", "Bearer")
-			reply(ctx, w, APIError(errmsg, http.StatusUnauthorized))
+			ReplyError(ctx, w, errmsg, http.StatusUnauthorized)
 			return
 		}
 
@@ -147,13 +146,13 @@ func IntrospectHandler(reply Reply, handler http.Handler, secret string) http.Ha
 			return secret, nil
 		})
 		if err != nil {
-			reply(ctx, w, "invalid access token", http.StatusForbidden)
+			ReplyError(ctx, w, "invalid access token", http.StatusForbidden)
 			return
 		}
 
 		ctx = context.WithValue(ctx, "token", token)
 		r = r.WithContext(ctx)
-		handler(w, r)
+		handler.ServeHTTP(w, r)
 	})
 }
 
@@ -169,4 +168,7 @@ func introParams(r *http.Request) (token, errmsg string) {
 	}
 
 	return strings.TrimPrefix(bearer, prefix), ""
+}
+
+type AuthInfo struct {
 }
