@@ -131,7 +131,7 @@ func stringInSlice(a string, list []string) bool {
 
 // IntrospectHandler verifies access token.
 // It forbids or requests authorization if token is invalid.
-func IntrospectHandler(handler http.Handler, secret string) http.HandlerFunc {
+func IntrospectHandler(secret []byte, handler http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
