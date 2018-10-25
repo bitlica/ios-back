@@ -1,8 +1,8 @@
 package auth
 
 import (
-	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -12,13 +12,19 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
+// Claims is set of values transferred by jwt
+type Claims struct {
+	jwt.StandardClaims
+	User string `json:"usr,omitempty"`
+}
+
 // AuthenticationHandler receives receipt and verifies it. Uses receipt for authenticate and authorize the user.
 // If successfully returns access token
 func AuthenticationHandler(secret []byte, period time.Duration, rs iap.ReceiptService, knownBundles ...string) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		bundleID, deviceID, receipt, errmsg := authParams(r)
+		bundleID, receipt, errmsg := authParams(r)
 		if errmsg != "" {
 			ReplyError(ctx, w, errmsg, http.StatusBadRequest)
 			return
@@ -56,19 +62,18 @@ func AuthenticationHandler(secret []byte, period time.Duration, rs iap.ReceiptSe
 		}
 
 		// calculate user id:
-		// use OriginalTransactionID as base for user id
-		// todo:
-		// clarify uncertainty:
-		// 1) OriginalTransactionID may not be unique if user has canceled purchase. Solution - add OriginalPurchaseDate (simple)
-		// 2) OriginalTransactionID may not be unique across multiple devices (or even behave like identifierForVendor ). Solution - involve WebOrderLineItemID (hard)
-		userID := sha256.Sum256([]byte(sbs.OriginalTransactionID + sbs.OriginalPurchaseDate.String()))
+		//  - use OriginalTransactionID as base for user id
+		//  - if your API allow free users (without IAP), you could use identifierForVendor (aka device id)
+		// todo: clarify uncertainty:
+		//  1) OriginalTransactionID may not be unique if user has canceled purchase. Solution - add OriginalPurchaseDate (simple)
+		//  2) OriginalTransactionID may not be unique across multiple devices (or even behave like identifierForVendor ). Solution - involve WebOrderLineItemID (hard)
+		user := sha256.Sum224([]byte(sbs.OriginalTransactionID + sbs.OriginalPurchaseDate.String()))
 
 		// write claims: token body
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"userid":  userID,
-			"enddate": expireSubscription,
-			"expire":  expireToken,
-		})
+		claims := Claims{}
+		claims.ExpiresAt = expireToken.Unix()
+		claims.User = base64.StdEncoding.EncodeToString(user[:])
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 		// Sign and get the complete encoded token as a string using the secret
 		tokenString, err := token.SignedString(secret)
@@ -89,33 +94,28 @@ func AuthenticationHandler(secret []byte, period time.Duration, rs iap.ReceiptSe
 	})
 }
 
-func authParams(r *http.Request) (bundleID, deviceID string, receipt []byte, errmsg string) {
+func authParams(r *http.Request) (bundleID string, receipt []byte, errmsg string) {
 
 	bundleID = r.FormValue("bundle_id")
 	if bundleID == "" {
-		return "", "", nil, "please provide correct bundle_id"
-	}
-
-	deviceID = r.FormValue("identifier_for_vendor")
-	if deviceID == "" {
-		return "", "", nil, "please provide correct identifier_for_vendor"
+		return "", nil, "please provide correct bundle_id"
 	}
 
 	fr, _, err := r.FormFile("receipt")
 	if err != nil {
-		return "", "", nil, "unable to read receipt: " + err.Error()
+		return "", nil, "unable to read receipt: " + err.Error()
 	}
 
 	receipt, err = ioutil.ReadAll(fr)
 	if err != nil {
-		return "", "", nil, "unable to read receipt: " + err.Error()
+		return "", nil, "unable to read receipt: " + err.Error()
 	}
 
 	if len(receipt) == 0 {
-		return "", "", nil, "please provide correct receipt"
+		return "", nil, "please provide correct receipt"
 	}
 
-	return bundleID, deviceID, receipt, ""
+	return bundleID, receipt, ""
 }
 
 // this is so widely used function.
@@ -142,16 +142,21 @@ func IntrospectHandler(handler http.Handler, secret string) http.HandlerFunc {
 			return
 		}
 
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		claims := Claims{}
+		keyFunc := func(token *jwt.Token) (interface{}, error) {
 			return secret, nil
-		})
+		}
+		_, err := jwt.ParseWithClaims(tokenString, &claims, keyFunc)
 		if err != nil {
 			ReplyError(ctx, w, "invalid access token", http.StatusForbidden)
 			return
 		}
 
-		ctx = context.WithValue(ctx, "token", token)
-		r = r.WithContext(ctx)
+		// now we have claims object with user id.
+		// What to do with this depends on your business logic.
+		// At minimum you may want to add it to you log records.
+		// Or you may want to pass it to other middleware for performing some logic - however, avoid to use context for this kind of propagation.
+
 		handler.ServeHTTP(w, r)
 	})
 }
