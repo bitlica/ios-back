@@ -313,7 +313,7 @@ type AutoRenewable struct {
 type ARState byte
 
 const (
-	AROk ARState = iota
+	ARActive ARState = iota
 	ARFree
 	ARExpired
 	ARCanceled
@@ -338,6 +338,6 @@ func getState(p InApp) ARState {
 	case p.SubscriptionTrialPeriod || p.SubscriptionIntroductoryPricePeriod:
 		return ARFree
 	default:
-		return AROk
+		return ARActive
 	}
 }
