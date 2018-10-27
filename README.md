@@ -1,4 +1,4 @@
-# ios-back
+# iap-auth-back
 This is an example of server that perform user authorization based on IOS AIP receipt file.
 It can be used as a convenient boilerplate for the IOS app's backend server.
 
