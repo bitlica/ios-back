@@ -1,4 +1,4 @@
-package auth
+package reply
 
 import (
 	"bytes"
@@ -18,23 +18,23 @@ var Reply = func(ctx context.Context, w http.ResponseWriter, response io.Reader,
 	io.Copy(w, response)
 }
 
-// ReplyOk is the function that format and send good json response to the user,
+// Ok is the function that format and send good json response to the user,
 // it is invoked internally from middlewares.
 // It is represented as a variable, so one could replace it with custom function.
-var ReplyOk = func(ctx context.Context, w http.ResponseWriter, response interface{}) {
+var Ok = func(ctx context.Context, w http.ResponseWriter, response interface{}) {
 	data, err := json.Marshal(response)
 	if err != nil {
-		ReplyError(ctx, w, "unable marshal response: "+err.Error(), http.StatusInternalServerError)
+		Err(ctx, w, "unable marshal response: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	resp := bytes.NewBuffer(data)
 	Reply(ctx, w, resp, http.StatusOK)
 }
 
-// ReplyError is the function that format and send good bad response to the user,
+// Err is the function that format and send good bad response to the user,
 // it is invoked internally from middlewares.
 // It is represented as a variable, so one could replace it with custom function.
-var ReplyError = func(ctx context.Context, w http.ResponseWriter, errmsg string, status int) {
+var Err = func(ctx context.Context, w http.ResponseWriter, errmsg string, status int) {
 	apierr := struct {
 		Message string `json:"message"`
 	}{errmsg}

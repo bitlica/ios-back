@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Loofort/ios-back/iap"
+	"github.com/Loofort/ios-back/reply"
 	"github.com/dgrijalva/jwt-go"
 )
 
@@ -26,13 +27,13 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 
 		bundleID, receipt, errmsg := authParams(r)
 		if errmsg != "" {
-			ReplyError(ctx, w, errmsg, http.StatusBadRequest)
+			reply.Err(ctx, w, errmsg, http.StatusBadRequest)
 			return
 		}
 
 		// validate bundle id
 		if len(knownBundles) > 1 && !stringInSlice(bundleID, knownBundles) {
-			ReplyError(ctx, w, "unregistered bundle", http.StatusForbidden)
+			reply.Err(ctx, w, "unregistered bundle", http.StatusForbidden)
 			return
 		}
 
@@ -42,11 +43,11 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
 			errmsg := "unexpected problem during receipt verifying: " + err.Error()
-			ReplyError(ctx, w, errmsg, http.StatusInternalServerError)
+			reply.Err(ctx, w, errmsg, http.StatusInternalServerError)
 			return
 		}
 		if len(subscriptions) == 0 {
-			ReplyError(ctx, w, "no active subscriptions", http.StatusForbidden)
+			reply.Err(ctx, w, "no active subscriptions", http.StatusForbidden)
 			return
 		}
 
@@ -81,7 +82,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
 			errmsg := "unable to create auth token: " + err.Error()
-			ReplyError(ctx, w, errmsg, http.StatusInternalServerError)
+			reply.Err(ctx, w, errmsg, http.StatusInternalServerError)
 			return
 		}
 
@@ -90,7 +91,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			"token_type":   "Bearer",
 			"expire_date":  expireToken.Unix(),
 		}
-		ReplyOk(ctx, w, response)
+		reply.Ok(ctx, w, response)
 	}
 }
 
@@ -141,7 +142,7 @@ func IntrospectHandler(secret string, handler http.Handler) http.HandlerFunc {
 		tokenString, errmsg := introParams(r)
 		if errmsg != "" {
 			w.Header().Set("WWW-Authenticate", "Bearer")
-			ReplyError(ctx, w, errmsg, http.StatusUnauthorized)
+			reply.Err(ctx, w, errmsg, http.StatusUnauthorized)
 			return
 		}
 
@@ -151,7 +152,7 @@ func IntrospectHandler(secret string, handler http.Handler) http.HandlerFunc {
 		}
 		_, err := jwt.ParseWithClaims(tokenString, &claims, keyFunc)
 		if err != nil {
-			ReplyError(ctx, w, "invalid access token:"+err.Error(), http.StatusForbidden)
+			reply.Err(ctx, w, "invalid access token:"+err.Error(), http.StatusForbidden)
 			return
 		}
 

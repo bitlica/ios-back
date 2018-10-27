@@ -8,6 +8,7 @@ import (
 
 	"github.com/Loofort/ios-back/auth"
 	"github.com/Loofort/ios-back/iap"
+	"github.com/Loofort/ios-back/reply"
 )
 
 const (
@@ -48,7 +49,7 @@ func helloAPI(w http.ResponseWriter, r *http.Request) {
 		"hello": name,
 	}
 
-	// ReplyOk is just a convenient helper to format json response.
+	// reply.Ok is just a convenient helper to format json response.
 	// it is not necessary to use exactly it.
-	auth.ReplyOk(r.Context(), w, response)
+	reply.Ok(r.Context(), w, response)
 }
