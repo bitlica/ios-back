@@ -20,8 +20,8 @@ type Claims struct {
 
 // AuthenticationHandler receives receipt and verifies it. Uses receipt for authenticate and authorize the user.
 // If successfully returns access token
-func AuthenticationHandler(secret []byte, period time.Duration, rs iap.ReceiptService, knownBundles ...string) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptService, knownBundles ...string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		bundleID, receipt, errmsg := authParams(r)
@@ -72,11 +72,11 @@ func AuthenticationHandler(secret []byte, period time.Duration, rs iap.ReceiptSe
 		// write claims: token body
 		claims := Claims{}
 		claims.ExpiresAt = expireToken.Unix()
-		claims.User = base64.StdEncoding.EncodeToString(user[:])
+		claims.User = base64.RawStdEncoding.EncodeToString(user[:])
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 		// Sign and get the complete encoded token as a string using the secret
-		tokenString, err := token.SignedString(secret)
+		tokenString, err := token.SignedString([]byte(secret))
 		if err != nil {
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
@@ -85,16 +85,19 @@ func AuthenticationHandler(secret []byte, period time.Duration, rs iap.ReceiptSe
 			return
 		}
 
-		response := map[string]string{
+		response := map[string]interface{}{
 			"access_token": tokenString,
 			"token_type":   "Bearer",
-			"expire_date":  expireToken.String(),
+			"expire_date":  expireToken.Unix(),
 		}
 		ReplyOk(ctx, w, response)
-	})
+	}
 }
 
 func authParams(r *http.Request) (bundleID string, receipt []byte, errmsg string) {
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		return "", nil, err.Error()
+	}
 
 	bundleID = r.FormValue("bundle_id")
 	if bundleID == "" {
@@ -131,8 +134,8 @@ func stringInSlice(a string, list []string) bool {
 
 // IntrospectHandler verifies access token.
 // It forbids or requests authorization if token is invalid.
-func IntrospectHandler(secret []byte, handler http.Handler) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+func IntrospectHandler(secret string, handler http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
 		tokenString, errmsg := introParams(r)
@@ -144,11 +147,11 @@ func IntrospectHandler(secret []byte, handler http.Handler) http.HandlerFunc {
 
 		claims := Claims{}
 		keyFunc := func(token *jwt.Token) (interface{}, error) {
-			return secret, nil
+			return []byte(secret), nil
 		}
 		_, err := jwt.ParseWithClaims(tokenString, &claims, keyFunc)
 		if err != nil {
-			ReplyError(ctx, w, "invalid access token", http.StatusForbidden)
+			ReplyError(ctx, w, "invalid access token:"+err.Error(), http.StatusForbidden)
 			return
 		}
 
@@ -158,7 +161,7 @@ func IntrospectHandler(secret []byte, handler http.Handler) http.HandlerFunc {
 		// Or you may want to pass it to other middleware for performing some logic - however, avoid to use context for this kind of propagation.
 
 		handler.ServeHTTP(w, r)
-	})
+	}
 }
 
 func introParams(r *http.Request) (token, errmsg string) {
@@ -173,7 +176,4 @@ func introParams(r *http.Request) (token, errmsg string) {
 	}
 
 	return strings.TrimPrefix(bearer, prefix), ""
-}
-
-type AuthInfo struct {
 }

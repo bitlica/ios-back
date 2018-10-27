@@ -1,0 +1,74 @@
+{
+	"status": 0,
+	"environment": "Sandbox",
+	"receipt": {
+	  "receipt_type": "ProductionSandbox",
+	  "adam_id": 0,
+	  "app_item_id": 0,
+	  "bundle_id": "com.myfirm.myapp",
+	  "application_version": "1",
+	  "download_id": 0,
+	  "version_external_identifier": 0,
+	  "receipt_creation_date": "2018-10-16 21:45:22 Etc/GMT",
+	  "receipt_creation_date_ms": "1539726322000",
+	  "receipt_creation_date_pst": "2018-10-16 14:45:22 America/Los_Angeles",
+	  "request_date": "2018-10-20 12:23:14 Etc/GMT",
+	  "request_date_ms": "1540038194082",
+	  "request_date_pst": "2018-10-20 05:23:14 America/Los_Angeles",
+	  "original_purchase_date": "2013-08-01 07:00:00 Etc/GMT",
+	  "original_purchase_date_ms": "1375340400000",
+	  "original_purchase_date_pst": "2013-08-01 00:00:00 America/Los_Angeles",
+	  "original_application_version": "1.0",
+	  "in_app": [
+		{
+		  "quantity": "1",
+		  "product_id": "com.myfirm.myapp.testsubscript",
+		  "transaction_id": "1000000458361822",
+		  "original_transaction_id": "1000000458361822",
+		  "purchase_date": "2018-10-16 21:19:39 Etc/GMT",
+		  "purchase_date_ms": "1539724779000",
+		  "purchase_date_pst": "2018-10-16 14:19:39 America/Los_Angeles",
+		  "original_purchase_date": "2018-10-16 21:19:40 Etc/GMT",
+		  "original_purchase_date_ms": "1539724780000",
+		  "original_purchase_date_pst": "2018-10-16 14:19:40 America/Los_Angeles",
+		  "expires_date": "2018-10-16 21:24:39 Etc/GMT",
+		  "expires_date_ms": "3539725079000",
+		  "expires_date_pst": "2018-10-16 14:24:39 America/Los_Angeles",
+		  "web_order_line_item_id": "1000000040842082",
+		  "is_trial_period": "false",
+		  "is_in_intro_offer_period": "false"
+		}
+	  ]
+	},
+	"latest_receipt_info": [
+	  {
+		"quantity": "1",
+		"product_id": "com.myfirm.myapp.testsubscript",
+		"transaction_id": "1000000458361822",
+		"original_transaction_id": "1000000458361822",
+		"purchase_date": "2018-10-16 21:19:39 Etc/GMT",
+		"purchase_date_ms": "1539724779000",
+		"purchase_date_pst": "2018-10-16 14:19:39 America/Los_Angeles",
+		"original_purchase_date": "2018-10-16 21:19:40 Etc/GMT",
+		"original_purchase_date_ms": "1539724780000",
+		"original_purchase_date_pst": "2018-10-16 14:19:40 America/Los_Angeles",
+		"expires_date": "2082-03-06 13:42:16 Etc/GMT",
+		"expires_date_ms": "3540030136000",
+		"expires_date_pst": "2082-03-06 06:42:16 America/Los_Angeles",
+		"web_order_line_item_id": "1000000040905732",
+		"is_trial_period": "false",
+		"is_in_intro_offer_period": "false"
+	  }
+	],
+	"latest_receipt": "ewoJInN0YXR1cyI6IDAsCgkiZW52aXJvbm1lbnQiOiAiU2FuZGJveCIsCgkicmVjZWlwdCI6IHsKCSAgInJlY2VpcHRfdHlwZSI6ICJQcm9kdWN0aW9uU2FuZGJveCIsCgkgICJhZGFtX2lkIjogMCwKCSAgImFwcF9pdGVtX2lkIjogMCwKCSAgImJ1bmRsZV9pZCI6ICJjb20ubXlmaXJtLm15YXBwIiwKCSAgImFwcGxpY2F0aW9uX3ZlcnNpb24iOiAiMSIsCgkgICJkb3dubG9hZF9pZCI6IDAsCgkgICJ2ZXJzaW9uX2V4dGVybmFsX2lkZW50aWZpZXIiOiAwLAoJICAicmVjZWlwdF9jcmVhdGlvbl9kYXRlIjogIjIwMTgtMTAtMTYgMjE6NDU6MjIgRXRjL0dNVCIsCgkgICJyZWNlaXB0X2NyZWF0aW9uX2RhdGVfbXMiOiAiMTUzOTcyNjMyMjAwMCIsCgkgICJyZWNlaXB0X2NyZWF0aW9uX2RhdGVfcHN0IjogIjIwMTgtMTAtMTYgMTQ6NDU6MjIgQW1lcmljYS9Mb3NfQW5nZWxlcyIsCgkgICJyZXF1ZXN0X2RhdGUiOiAiMjAxOC0xMC0yMCAxMjoyMzoxNCBFdGMvR01UIiwKCSAgInJlcXVlc3RfZGF0ZV9tcyI6ICIxNTQwMDM4MTk0MDgyIiwKCSAgInJlcXVlc3RfZGF0ZV9wc3QiOiAiMjAxOC0xMC0yMCAwNToyMzoxNCBBbWVyaWNhL0xvc19BbmdlbGVzIiwKCSAgIm9yaWdpbmFsX3B1cmNoYXNlX2RhdGUiOiAiMjAxMy0wOC0wMSAwNzowMDowMCBFdGMvR01UIiwKCSAgIm9yaWdpbmFsX3B1cmNoYXNlX2RhdGVfbXMiOiAiMTM3NTM0MDQwMDAwMCIsCgkgICJvcmlnaW5hbF9wdXJjaGFzZV9kYXRlX3BzdCI6ICIyMDEzLTA4LTAxIDAwOjAwOjAwIEFtZXJpY2EvTG9zX0FuZ2VsZXMiLAoJICAib3JpZ2luYWxfYXBwbGljYXRpb25fdmVyc2lvbiI6ICIxLjAiLAoJICAiaW5fYXBwIjogWwoJCXsKCQkgICJxdWFudGl0eSI6ICIxIiwKCQkgICJwcm9kdWN0X2lkIjogImNvbS5teWZpcm0ubXlhcHAudGVzdHN1YnNjcmlwdCIsCgkJICAidHJhbnNhY3Rpb25faWQiOiAiMTAwMDAwMDQ1ODM2MTgyMiIsCgkJICAib3JpZ2luYWxfdHJhbnNhY3Rpb25faWQiOiAiMTAwMDAwMDQ1ODM2MTgyMiIsCgkJICAicHVyY2hhc2VfZGF0ZSI6ICIyMDE4LTEwLTE2IDIxOjE5OjM5IEV0Yy9HTVQiLAoJCSAgInB1cmNoYXNlX2RhdGVfbXMiOiAiMTUzOTcyNDc3OTAwMCIsCgkJICAicHVyY2hhc2VfZGF0ZV9wc3QiOiAiMjAxOC0xMC0xNiAxNDoxOTozOSBBbWVyaWNhL0xvc19BbmdlbGVzIiwKCQkgICJvcmlnaW5hbF9wdXJjaGFzZV9kYXRlIjogIjIwMTgtMTAtMTYgMjE6MTk6NDAgRXRjL0dNVCIsCgkJICAib3JpZ2luYWxfcHVyY2hhc2VfZGF0ZV9tcyI6ICIxNTM5NzI0NzgwMDAwIiwKCQkgICJvcmlnaW5hbF9wdXJjaGFzZV9kYXRlX3BzdCI6ICIyMDE4LTEwLTE2IDE0OjE5OjQwIEFtZXJpY2EvTG9zX0FuZ2VsZXMiLAoJCSAgImV4cGlyZXNfZGF0ZSI6ICIyMDE4LTEwLTE2IDIxOjI0OjM5IEV0Yy9HTVQiLAoJCSAgImV4cGlyZXNfZGF0ZV9tcyI6ICIxNTM5NzI1MDc5MDAwIiwKCQkgICJleHBpcmVzX2RhdGVfcHN0IjogIjIwMTgtMTAtMTYgMTQ6MjQ6MzkgQW1lcmljYS9Mb3NfQW5nZWxlcyIsCgkJICAid2ViX29yZGVyX2xpbmVfaXRlbV9pZCI6ICIxMDAwMDAwMDQwODQyMDgyIiwKCQkgICJpc190cmlhbF9wZXJpb2QiOiAiZmFsc2UiLAoJCSAgImlzX2luX2ludHJvX29mZmVyX3BlcmlvZCI6ICJmYWxzZSIKCQl9CgkgIF0KCX0sCgkibGF0ZXN0X3JlY2VpcHRfaW5mbyI6IFsKCSAgewoJCSJxdWFudGl0eSI6ICIxIiwKCQkicHJvZHVjdF9pZCI6ICJjb20ubXlmaXJtLm15YXBwLnRlc3RzdWJzY3JpcHQiLAoJCSJ0cmFuc2FjdGlvbl9pZCI6ICIxMDAwMDAwNDYwMzMwOTA3IiwKCQkib3JpZ2luYWxfdHJhbnNhY3Rpb25faWQiOiAiMTAwMDAwMDQ1ODM2MTgyMiIsCgkJInB1cmNoYXNlX2RhdGUiOiAiMjAxOC0xMC0yMCAxMDowMzo1NiBFdGMvR01UIiwKCQkicHVyY2hhc2VfZGF0ZV9tcyI6ICIxNTQwMDI5ODM2MDAwIiwKCQkicHVyY2hhc2VfZGF0ZV9wc3QiOiAiMjAxOC0xMC0yMCAwMzowMzo1NiBBbWVyaWNhL0xvc19BbmdlbGVzIiwKCQkib3JpZ2luYWxfcHVyY2hhc2VfZGF0ZSI6ICIyMDE4LTEwLTE2IDIxOjE5OjQwIEV0Yy9HTVQiLAoJCSJvcmlnaW5hbF9wdXJjaGFzZV9kYXRlX21zIjogIjE1Mzk3MjQ3ODAwMDAiLAoJCSJvcmlnaW5hbF9wdXJjaGFzZV9kYXRlX3BzdCI6ICIyMDE4LTEwLTE2IDE0OjE5OjQwIEFtZXJpY2EvTG9zX0FuZ2VsZXMiLAoJCSJleHBpcmVzX2RhdGUiOiAiMjAxOC0xMC0yMCAxMDowODo1NiBFdGMvR01UIiwKCQkiZXhwaXJlc19kYXRlX21zIjogIjE1NDAwMzAxMzYwMDAiLAoJCSJleHBpcmVzX2RhdGVfcHN0IjogIjIwMTgtMTAtMjAgMDM6MDg6NTYgQW1lcmljYS9Mb3NfQW5nZWxlcyIsCgkJIndlYl9vcmRlcl9saW5lX2l0ZW1faWQiOiAiMTAwMDAwMDA0MDkwNTczMiIsCgkJImlzX3RyaWFsX3BlcmlvZCI6ICJmYWxzZSIsCgkJImlzX2luX2ludHJvX29mZmVyX3BlcmlvZCI6ICJmYWxzZSIKCSAgfQoJXSwKCSJsYXRlc3RfcmVjZWlwdCI6ICIiLAoJInBlbmRpbmdfcmVuZXdhbF9pbmZvIjogWwoJICB7CgkJImV4cGlyYXRpb25faW50ZW50IjogIjEiLAoJCSJhdXRvX3JlbmV3X3Byb2R1Y3RfaWQiOiAiY29tLm15ZmlybS5teWFwcC50ZXN0c3Vic2NyaXB0IiwKCQkib3JpZ2luYWxfdHJhbnNhY3Rpb25faWQiOiAiMTAwMDAwMDQ1ODM2MTgyMiIsCgkJImlzX2luX2JpbGxpbmdfcmV0cnlfcGVyaW9kIjogIjAiLAoJCSJwcm9kdWN0X2lkIjogImNvbS5teWZpcm0ubXlhcHAudGVzdHN1YnNjcmlwdCIsCgkJImF1dG9fcmVuZXdfc3RhdHVzIjogIjAiCgkgIH0KCV0KICB9",
+	"pending_renewal_info": [
+	  {
+		"expiration_intent": "1",
+		"auto_renew_product_id": "com.myfirm.myapp.testsubscript",
+		"original_transaction_id": "1000000458361822",
+		"is_in_billing_retry_period": "0",
+		"product_id": "com.myfirm.myapp.testsubscript",
+		"auto_renew_status": "0"
+	  }
+	]
+  }

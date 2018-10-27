@@ -64,6 +64,10 @@ func VerifyReceipt(ctx context.Context, rreq ReceiptRequest, url string, maxretr
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return rresp, fmt.Errorf("unexpected http response code from apple server: %d", resp.StatusCode)
+	}
+
 	//dump, _ := httputil.DumpResponse(resp, true)
 	//fmt.Println("RESP ", string(dump))
 
