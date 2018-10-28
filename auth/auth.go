@@ -152,7 +152,7 @@ func IntrospectHandler(secret string, handler http.Handler) http.HandlerFunc {
 		}
 		_, err := jwt.ParseWithClaims(tokenString, &claims, keyFunc)
 		if err != nil {
-			reply.Err(ctx, w, "invalid access token:"+err.Error(), http.StatusForbidden)
+			reply.Err(ctx, w, "invalid access token:"+err.Error(), http.StatusUnauthorized)
 			return
 		}
 
