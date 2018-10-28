@@ -37,7 +37,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			return
 		}
 
-		// get active or free subscription, no expired or canceled can be returned by following method.
+		// get all subscriptions, including expired (not sure about canceled)
 		subscriptions, err := rs.GetAutoRenewableIAPs(ctx, receipt)
 		if err != nil {
 			// remember it's bad practice to expose internal errors.
@@ -46,14 +46,20 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			reply.Err(ctx, w, errmsg, http.StatusInternalServerError)
 			return
 		}
-		if len(subscriptions) == 0 {
+		var active []iap.AutoRenewable
+		for _, sbs := range subscriptions {
+			if sbs.State == iap.ARActive || sbs.State == iap.ARFree {
+				active = append(active, sbs)
+			}
+		}
+		if len(active) == 0 {
 			reply.Err(ctx, w, "no active subscriptions", http.StatusForbidden)
 			return
 		}
 
 		// in general you could have more than one auto-renewable subscription.
 		// but in this middleware we assume it's only one.
-		sbs := subscriptions[0]
+		sbs := active[0]
 		expireSubscription := sbs.SubscriptionExpirationDate.Time
 
 		// set token expire date no more than subscription expiration.

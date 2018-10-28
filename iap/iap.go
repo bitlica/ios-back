@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 	"time"
@@ -68,8 +69,8 @@ func VerifyReceipt(ctx context.Context, rreq ReceiptRequest, url string, maxretr
 		return rresp, fmt.Errorf("unexpected http response code from apple server: %d", resp.StatusCode)
 	}
 
-	//dump, _ := httputil.DumpResponse(resp, true)
-	//fmt.Println("RESP ", string(dump))
+	dump, _ := httputil.DumpResponse(resp, true)
+	fmt.Println("RESP ", string(dump))
 
 	if err := json.NewDecoder(resp.Body).Decode(&rresp); err != nil {
 		return rresp, err
