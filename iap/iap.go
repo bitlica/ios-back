@@ -333,7 +333,7 @@ func getState(p InApp) ARState {
 	switch {
 	case !p.CancellationDate.IsZero():
 		return ARCanceled
-	case p.SubscriptionExpirationIntent > 0:
+	case p.SubscriptionExpirationDate.After(time.Now()): // can't use p.SubscriptionExpirationIntent here, see https://stackoverflow.com/questions/47254834/how-to-get-expiration-intent-from-apples-subscriptions-server-notifications
 		return ARExpired
 	case p.SubscriptionTrialPeriod || p.SubscriptionIntroductoryPricePeriod:
 		return ARFree
