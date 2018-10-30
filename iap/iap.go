@@ -205,16 +205,16 @@ func (rresp ReceiptResponse) ParseLatestReceiptInfo() ([]InApp, error) {
 	err := json.Unmarshal(rresp.LatestReceiptInfo, &iaps)
 	return iaps, err
 }
-func (rresp ReceiptResponse) ParsePendingRenewalInfo() ([]InApp, error) {
+func (rresp ReceiptResponse) ParsePendingRenewalInfo() ([]PendingRenewalInfo, error) {
 	if err := CheckStatusError(rresp); err != nil {
 		return nil, err
 	}
 
 	if len(rresp.PendingRenewalInfo) == 0 {
-		return []InApp{}, nil
+		return []PendingRenewalInfo{}, nil
 	}
 
-	var iaps []InApp
+	var iaps []PendingRenewalInfo
 	err := json.Unmarshal(rresp.PendingRenewalInfo, &iaps)
 	return iaps, err
 }
@@ -276,21 +276,6 @@ type InApp struct {
 	//only for auto-renewable. identify the date when subscription will renew or expire,  past date means expired.
 	SubscriptionExpirationDate Time `json:"expires_date_ms"` // unix timestamp. RFC 3339 date. The expiration date for the subscription,
 
-	//“1” - Customer canceled their subscription.
-	//“2” - Billing error; for example customer’s payment information was no longer valid.
-	//“3” - Customer did not agree to a recent price increase.
-	//“4” - Product was not available for purchase at the time of renewal.
-	//“5” - Unknown error.
-	SubscriptionExpirationIntent int `json:"expiration_intent,string"` // only present for an expired subscription, the reason of expiration.
-
-	// “1” - Customer has agreed to the price increase. Subscription will renew at the higher price.
-	// “0” - Customer has not taken action regarding the increased price. Subscription expires if the customer takes no action before the renewal date.
-	SubscriptionPriceConsentStatus int `json:"price_consent_status,string"` // only for auto-renewable if the subscription price was increased without keeping the existing price for active subscribers.
-
-	// “1” - App Store is still attempting to renew the subscription.
-	// “0” - App Store has stopped attempting to renew the subscription.
-	SubscriptionRetryFlag int `json:"is_in_billing_retry_period,string"` //only present for an expired subscription, whether or not Apple is still attempting to automatically renew the subscription.
-
 	// Note: If a previous subscription period in the receipt has the value “true” for either the is_trial_period or the is_in_intro_offer_period key,
 	// the user is not eligible for a free trial or introductory price within that subscription group.
 	SubscriptionTrialPeriod bool `json:"is_trial_period,string"` // only for auto-renewable subscription receipts. "true" if free trial period, or "false" if not.
@@ -299,10 +284,37 @@ type InApp struct {
 	// the user is not eligible for a free trial or introductory price within that subscription group.
 	SubscriptionIntroductoryPricePeriod bool `json:"is_in_intro_offer_period,string"` // only for auto-renewable subscription receipts. "true" if an introductory price period, or "false" if not.
 
+}
+
+// Apple badly documents json response.
+// It appeared some of the fields present only in "pending_renewal_info".
+// see https://forums.developer.apple.com/thread/82850 for some details.
+type PendingRenewalInfo struct {
+	ProductID             string `json:"product_id"`              // current subscription
+	OriginalTransactionID string `json:"original_transaction_id"` // This value is the same for all receipts that have been generated for a specific subscription.
+
+	SubscriptionAutoRenewPreference string `json:"auto_renew_product_id"` // only for auto-renewable. You can use this value to present an alternative service level to the customer before the current subscription period ends.
+
+	// next fields appeared if subscription lapsed
+
+	// “1” - App Store is still attempting to renew the subscription.
+	// “0” - App Store has stopped attempting to renew the subscription.
+	SubscriptionRetryFlag int `json:"is_in_billing_retry_period,string"` //only present for an expired subscription, whether or not Apple is still attempting to automatically renew the subscription.
+
+	//“1” - Customer canceled their subscription.
+	//“2” - Billing error; for example customer’s payment information was no longer valid.
+	//“3” - Customer did not agree to a recent price increase.
+	//“4” - Product was not available for purchase at the time of renewal.
+	//“5” - Unknown error.
+	SubscriptionExpirationIntent int `json:"expiration_intent,string"` // only present for an expired subscription, the reason of expiration.
+
 	// “1” - Subscription will renew at the end of the current subscription period.
 	// “0” - Customer has turned off automatic renewal for their subscription.
-	SubscriptionAutoRenewStatus     int    `json:"auto_renew_status,string"` // only for auto-renewable.  The current renewal status for the auto-renewable subscription.
-	SubscriptionAutoRenewPreference string `json:"auto_renew_product_id"`    // only for auto-renewable. You can use this value to present an alternative service level to the customer before the current subscription period ends.
+	SubscriptionAutoRenewStatus int `json:"auto_renew_status,string"` // only for auto-renewable.  The current renewal status for the auto-renewable subscription.
+
+	// “1” - Customer has agreed to the price increase. Subscription will renew at the higher price.
+	// “0” - Customer has not taken action regarding the increased price. Subscription expires if the customer takes no action before the renewal date.
+	SubscriptionPriceConsentStatus int `json:"price_consent_status,string"` // (not sure if this field in pending_renewal_info) only for auto-renewable if the subscription price was increased without keeping the existing price for active subscribers.
 }
 
 type AutoRenewable struct {
@@ -333,7 +345,7 @@ func getState(p InApp) ARState {
 	switch {
 	case !p.CancellationDate.IsZero():
 		return ARCanceled
-	case p.SubscriptionExpirationDate.After(time.Now()): // can't use p.SubscriptionExpirationIntent here, see https://stackoverflow.com/questions/47254834/how-to-get-expiration-intent-from-apples-subscriptions-server-notifications
+	case p.SubscriptionExpirationDate.Before(time.Now()): // can't use p.SubscriptionExpirationIntent here, see https://stackoverflow.com/questions/47254834/how-to-get-expiration-intent-from-apples-subscriptions-server-notifications
 		return ARExpired
 	case p.SubscriptionTrialPeriod || p.SubscriptionIntroductoryPricePeriod:
 		return ARFree
