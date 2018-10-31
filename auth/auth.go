@@ -92,10 +92,11 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			return
 		}
 
+		expSec := time.Since(expireToken).Seconds()
 		response := map[string]interface{}{
 			"access_token": tokenString,
 			"token_type":   "Bearer",
-			"expire_date":  expireToken.Unix(),
+			"expires_in":   -int(expSec),
 		}
 		reply.Ok(ctx, w, response)
 	}
