@@ -6,40 +6,81 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+
+	"github.com/Loofort/ios-back/log"
 )
 
-// Reply is the function that send response to the user,
-// it is invoked internally from middlewares.
-// It is represented as a variable, so one could replace it with custom function.
-var Reply = func(ctx context.Context, w http.ResponseWriter, response io.Reader, status int) {
+// New produces replier object and can be redefined.
+var New = func() Replier {
+	return JSONReplier{}
+}
+
+type Replier interface {
+	// Reply is the function that send response to the user.
+	Reply(ctx context.Context, w http.ResponseWriter, response interface{}, status int)
+	// Ok produces output with http.StatusOK http code.  It is shorthand for Reply(ctx, w, response, http.StatusOK).
+	Ok(ctx context.Context, w http.ResponseWriter, response interface{})
+	// Err formats error response based on passed message
+	Err(ctx context.Context, w http.ResponseWriter, errmsg string, status int)
+}
+
+type JSONReplier struct{}
+
+func (JSONReplier) reply(ctx context.Context, w http.ResponseWriter, response io.Reader, status int) {
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(status)
 
 	io.Copy(w, response)
 }
 
-// Ok is the function that format and send good json response to the user,
-// it is invoked internally from middlewares.
-// It is represented as a variable, so one could replace it with custom function.
-var Ok = func(ctx context.Context, w http.ResponseWriter, response interface{}) {
-	data, err := json.Marshal(response)
-	if err != nil {
-		Err(ctx, w, "unable marshal response: "+err.Error(), http.StatusInternalServerError)
+func (rpl JSONReplier) Reply(ctx context.Context, w http.ResponseWriter, response interface{}, status int) {
+	// check reader
+	if reader, ok := response.(io.Reader); ok {
+		rpl.reply(ctx, w, reader, status)
 		return
 	}
-	resp := bytes.NewBuffer(data)
-	Reply(ctx, w, resp, http.StatusOK)
+
+	// marshal body
+	data, err := json.Marshal(response)
+	if err != nil {
+		log.FromContext(ctx).Error("unable marshal response", "err", err)
+		rpl.Err(ctx, w, "internal error", http.StatusInternalServerError)
+		return
+	}
+
+	//create reader
+	reader := bytes.NewBuffer(data)
+	rpl.reply(ctx, w, reader, status)
 }
 
-// Err is the function that format and send good bad response to the user,
-// it is invoked internally from middlewares.
-// It is represented as a variable, so one could replace it with custom function.
-var Err = func(ctx context.Context, w http.ResponseWriter, errmsg string, status int) {
+func (rpl JSONReplier) Ok(ctx context.Context, w http.ResponseWriter, response interface{}) {
+	rpl.Reply(ctx, w, response, http.StatusOK)
+}
+
+func (rpl JSONReplier) Err(ctx context.Context, w http.ResponseWriter, errmsg string, status int) {
 	apierr := struct {
 		Message string `json:"message"`
 	}{errmsg}
 
 	data, _ := json.Marshal(apierr)
-	resp := bytes.NewBuffer(data)
-	Reply(ctx, w, resp, status)
+	reader := bytes.NewBuffer(data)
+	rpl.reply(ctx, w, reader, status)
+}
+
+/*************** context *************/
+type replyKeyType struct{}
+
+var replyKey = replyKeyType{}
+
+func NewContext(ctx context.Context, replier Replier) context.Context {
+	return context.WithValue(ctx, replyKey, replier)
+}
+
+func FromContext(ctx context.Context) Replier {
+	replier, _ := ctx.Value(replyKey).(Replier)
+	if replier == nil {
+		replier = New()
+	}
+
+	return replier
 }
