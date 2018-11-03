@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/Loofort/ios-back/log"
+	"github.com/Loofort/ios-back/usage"
 )
 
 // New produces replier object and can be redefined.
@@ -27,10 +28,23 @@ type Replier interface {
 type JSONReplier struct{}
 
 func (JSONReplier) reply(ctx context.Context, w http.ResponseWriter, response io.Reader, status int) {
+	logger := log.FromContext(ctx)
+
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(status)
 
-	io.Copy(w, response)
+	n, err := io.Copy(w, response)
+	if err != nil {
+		logger.Error("unable to reply", "err", err, "type", "reply")
+	}
+
+	// log usage
+	usage := usage.FromContext(ctx)
+	usage = append(usage,
+		"http_status", status,
+		"sent", n,
+	)
+	logger.Info("usage", usage...)
 }
 
 func (rpl JSONReplier) Reply(ctx context.Context, w http.ResponseWriter, response interface{}, status int) {
