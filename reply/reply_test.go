@@ -14,11 +14,11 @@ type testReplier struct{ JSONReplier }
 
 func TestGetWhatWasSet(t *testing.T) {
 	ctx := context.Background()
-	logger := &testReplier{}
+	replier := &testReplier{}
 
-	ctx = NewContext(ctx, logger)
+	ctx = NewContext(ctx, replier)
 	got := FromContext(ctx)
-	assert.Exactly(t, got, logger)
+	assert.Exactly(t, got, replier)
 }
 
 func TestAutoCreateReplier(t *testing.T) {
@@ -73,15 +73,13 @@ func TestJSONReplyOk(t *testing.T) {
 		},
 	}
 
-	rpl := JSONReplier{}
 	ctx := context.Background()
-
 	for _, tc := range testcases {
 		t.Run(
 			tc.name,
 			func(t *testing.T) {
 				w := httptest.NewRecorder()
-				rpl.Ok(ctx, w, tc.input)
+				Ok(ctx, w, tc.input)
 				assert.Equal(t, tc.expectCode, w.Code)
 				assert.Equal(t, tc.expectBody, w.Body.String())
 			},
@@ -90,11 +88,10 @@ func TestJSONReplyOk(t *testing.T) {
 }
 
 func TestJSONReplyErr(t *testing.T) {
-	rpl := JSONReplier{}
 	ctx := context.Background()
 	w := httptest.NewRecorder()
 
-	rpl.Err(ctx, w, http.StatusTeapot, "some err")
+	Err(ctx, w, http.StatusTeapot, "some err")
 
 	assert.Equal(t, http.StatusTeapot, w.Code)
 	assert.Equal(t, `{"message":"some err"}`, w.Body.String())
