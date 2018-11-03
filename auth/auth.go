@@ -9,7 +9,9 @@ import (
 	"time"
 
 	"github.com/Loofort/ios-back/iap"
+	"github.com/Loofort/ios-back/log"
 	"github.com/Loofort/ios-back/reply"
+	"github.com/Loofort/ios-back/usage"
 	"github.com/dgrijalva/jwt-go"
 )
 
@@ -42,9 +44,10 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 		// get all subscriptions, including expired (not sure about canceled)
 		subscriptions, err := rs.GetAutoRenewableIAPs(ctx, receipt)
 		if err != nil {
+			errmsg := "unexpected problem during receipt verifying"
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
-			errmsg := "unexpected problem during receipt verifying: " + err.Error()
+			log.FromContext(ctx).Error(errmsg, "err", err, "type", "auth.iap")
 			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusInternalServerError)
 			return
 		}
@@ -87,9 +90,10 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 		// Sign and get the complete encoded token as a string using the secret
 		tokenString, err := token.SignedString([]byte(secret))
 		if err != nil {
+			errmsg := "unable to create auth token"
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
-			errmsg := "unable to create auth token: " + err.Error()
+			log.FromContext(ctx).Error(errmsg, "err", err, "type", "auth.jwt")
 			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusInternalServerError)
 			return
 		}
@@ -100,6 +104,12 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			"token_type":   "Bearer",
 			"expires_in":   -int(expSec),
 		}
+
+		// add usage for log info purposes
+		ctx = usage.NewContext(ctx,
+			"uuid", claims.UUID,
+			"expires_in", -int(expSec),
+		)
 		reply.FromContext(ctx).Ok(ctx, w, response)
 	}
 }
@@ -161,7 +171,15 @@ func IntrospectHandler(secret string, next NextHandlerBuilder) http.HandlerFunc 
 		}
 		_, err := jwt.ParseWithClaims(tokenString, &claims, keyFunc)
 		if err != nil {
-			reply.FromContext(ctx).Err(ctx, w, "invalid access token:"+err.Error(), http.StatusUnauthorized)
+			errmsg = "token expired"
+			if verr, ok := err.(*jwt.ValidationError); !ok || verr.Errors&jwt.ValidationErrorExpired == 0 {
+				errmsg = "invalid access token"
+				// log system error or hacker attack
+				log.FromContext(ctx).Error("invalid access token", "err", err, "type", "auth.invalid")
+			}
+
+			w.Header().Set("WWW-Authenticate", "Bearer")
+			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusUnauthorized)
 			return
 		}
 
@@ -169,8 +187,11 @@ func IntrospectHandler(secret string, next NextHandlerBuilder) http.HandlerFunc 
 		// What to do with this depends on your business logic.
 		// At minimum you may want to add it to you log records.
 		// Or you may want to pass it to other middleware for performing some logic - however, avoid to use context for this kind of propagation.
+		ctx = usage.NewContext(ctx,
+			"uuid", claims.UUID,
+		)
 
-		next(claims.UUID).ServeHTTP(w, r)
+		next(claims.UUID).ServeHTTP(w, r.WithContext(ctx))
 	}
 }
 
