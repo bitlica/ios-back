@@ -27,13 +27,13 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 
 		bundleID, receipt, errmsg := authParams(r)
 		if errmsg != "" {
-			reply.Err(ctx, w, errmsg, http.StatusBadRequest)
+			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusBadRequest)
 			return
 		}
 
 		// validate bundle id
 		if len(knownBundles) > 1 && !stringInSlice(bundleID, knownBundles) {
-			reply.Err(ctx, w, "unregistered bundle", http.StatusForbidden)
+			reply.FromContext(ctx).Err(ctx, w, "unregistered bundle", http.StatusForbidden)
 			return
 		}
 
@@ -43,7 +43,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
 			errmsg := "unexpected problem during receipt verifying: " + err.Error()
-			reply.Err(ctx, w, errmsg, http.StatusInternalServerError)
+			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusInternalServerError)
 			return
 		}
 		var active []iap.AutoRenewable
@@ -53,7 +53,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			}
 		}
 		if len(active) == 0 {
-			reply.Err(ctx, w, "no active subscriptions", http.StatusForbidden)
+			reply.FromContext(ctx).Err(ctx, w, "no active subscriptions", http.StatusForbidden)
 			return
 		}
 
@@ -88,7 +88,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
 			errmsg := "unable to create auth token: " + err.Error()
-			reply.Err(ctx, w, errmsg, http.StatusInternalServerError)
+			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusInternalServerError)
 			return
 		}
 
@@ -98,7 +98,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			"token_type":   "Bearer",
 			"expires_in":   -int(expSec),
 		}
-		reply.Ok(ctx, w, response)
+		reply.FromContext(ctx).Ok(ctx, w, response)
 	}
 }
 
@@ -149,7 +149,7 @@ func IntrospectHandler(secret string, handler http.Handler) http.HandlerFunc {
 		tokenString, errmsg := introParams(r)
 		if errmsg != "" {
 			w.Header().Set("WWW-Authenticate", "Bearer")
-			reply.Err(ctx, w, errmsg, http.StatusUnauthorized)
+			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusUnauthorized)
 			return
 		}
 
@@ -159,7 +159,7 @@ func IntrospectHandler(secret string, handler http.Handler) http.HandlerFunc {
 		}
 		_, err := jwt.ParseWithClaims(tokenString, &claims, keyFunc)
 		if err != nil {
-			reply.Err(ctx, w, "invalid access token:"+err.Error(), http.StatusUnauthorized)
+			reply.FromContext(ctx).Err(ctx, w, "invalid access token:"+err.Error(), http.StatusUnauthorized)
 			return
 		}
 

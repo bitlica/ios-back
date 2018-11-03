@@ -40,6 +40,7 @@ func serveMux(rs iap.ReceiptService) *http.ServeMux {
 
 func helloAPI(w http.ResponseWriter, r *http.Request) {
 	// enter here only if access token was valied
+	ctx := r.Context()
 
 	name := r.FormValue("name")
 	if name == "" {
@@ -51,5 +52,5 @@ func helloAPI(w http.ResponseWriter, r *http.Request) {
 
 	// reply.Ok is just a convenient helper to format json response.
 	// it is not necessary to use exactly it.
-	reply.Ok(r.Context(), w, response)
+	reply.FromContext(ctx).Ok(ctx, w, response)
 }
