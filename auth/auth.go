@@ -13,10 +13,12 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
+type NextHandlerBuilder func(uuid string) http.Handler
+
 // Claims is set of values transferred by jwt
 type Claims struct {
 	jwt.StandardClaims
-	User string `json:"usr,omitempty"`
+	UUID string `json:"usr,omitempty"`
 }
 
 // AuthenticationHandler receives receipt and verifies it. Uses receipt for authenticate and authorize the user.
@@ -79,7 +81,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 		// write claims: token body
 		claims := Claims{}
 		claims.ExpiresAt = expireToken.Unix()
-		claims.User = base64.RawStdEncoding.EncodeToString(user[:])
+		claims.UUID = base64.RawStdEncoding.EncodeToString(user[:])
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 		// Sign and get the complete encoded token as a string using the secret
@@ -142,7 +144,7 @@ func stringInSlice(a string, list []string) bool {
 
 // IntrospectHandler verifies access token.
 // It forbids or requests authorization if token is invalid.
-func IntrospectHandler(secret string, handler http.Handler) http.HandlerFunc {
+func IntrospectHandler(secret string, next NextHandlerBuilder) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -168,7 +170,7 @@ func IntrospectHandler(secret string, handler http.Handler) http.HandlerFunc {
 		// At minimum you may want to add it to you log records.
 		// Or you may want to pass it to other middleware for performing some logic - however, avoid to use context for this kind of propagation.
 
-		handler.ServeHTTP(w, r)
+		next(claims.UUID).ServeHTTP(w, r)
 	}
 }
 

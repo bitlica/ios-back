@@ -29,28 +29,32 @@ func main() {
 
 func serveMux(rs iap.ReceiptService) *http.ServeMux {
 	authHandler := auth.AuthenticationHandler(jwtSecret, jwtPeriod, rs, bundleID)
-	timeHandler := auth.IntrospectHandler(jwtSecret, http.HandlerFunc(helloAPI))
+	apiHandler := auth.IntrospectHandler(jwtSecret, newUserHandler)
 
 	mux := &http.ServeMux{}
 	mux.Handle("/token", authHandler)
-	mux.Handle("/hello", timeHandler)
+	mux.Handle("/user", apiHandler)
 
 	return mux
 }
 
-func helloAPI(w http.ResponseWriter, r *http.Request) {
+/*************************** user API ***************************/
+
+type userAPI struct {
+	UUID string `json:"uuid"`
+}
+
+func newUserHandler(uuid string) http.Handler {
+	return userAPI{uuid}
+}
+
+func (api userAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// enter here only if access token was valied
 	ctx := r.Context()
 
-	name := r.FormValue("name")
-	if name == "" {
-		name = "world"
-	}
-	response := map[string]string{
-		"hello": name,
-	}
+	// the response is the handler object itself
 
 	// reply.Ok is just a convenient helper to format json response.
 	// it is not necessary to use exactly it.
-	reply.FromContext(ctx).Ok(ctx, w, response)
+	reply.FromContext(ctx).Ok(ctx, w, api)
 }

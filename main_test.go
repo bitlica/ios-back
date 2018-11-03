@@ -32,13 +32,13 @@ func TestTest(t *testing.T) {
 	token := resp["access_token"].(string)
 
 	// use token
-	req, err := http.NewRequest("GET", ts.URL+"/hello", nil)
+	req, err := http.NewRequest("GET", ts.URL+"/user", nil)
 	require.NoError(t, err)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
 
 	resp = apicall(t, req)
-	if resp["hello"].(string) != "world" {
-		t.Fatalf("unexpected hello reponse: %v", resp)
+	if resp["uuid"].(string) == "" {
+		t.Fatalf("unexpected reponse: %v", resp)
 	}
 }
 
