@@ -31,13 +31,13 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 
 		bundleID, receipt, errmsg := authParams(r)
 		if errmsg != "" {
-			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusBadRequest)
+			reply.FromContext(ctx).Err(ctx, w, http.StatusBadRequest, errmsg)
 			return
 		}
 
 		// validate bundle id
 		if len(knownBundles) > 1 && !stringInSlice(bundleID, knownBundles) {
-			reply.FromContext(ctx).Err(ctx, w, "unregistered bundle", http.StatusForbidden)
+			reply.FromContext(ctx).Err(ctx, w, http.StatusForbidden, "unregistered bundle")
 			return
 		}
 
@@ -48,7 +48,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
 			log.FromContext(ctx).Error(errmsg, "err", err, "type", "auth.iap")
-			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusInternalServerError)
+			reply.FromContext(ctx).Err(ctx, w, http.StatusInternalServerError, errmsg)
 			return
 		}
 		var active []iap.AutoRenewable
@@ -58,7 +58,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			}
 		}
 		if len(active) == 0 {
-			reply.FromContext(ctx).Err(ctx, w, "no active subscriptions", http.StatusForbidden)
+			reply.FromContext(ctx).Err(ctx, w, http.StatusForbidden, "no active subscriptions")
 			return
 		}
 
@@ -94,7 +94,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
 			log.FromContext(ctx).Error(errmsg, "err", err, "type", "auth.jwt")
-			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusInternalServerError)
+			reply.FromContext(ctx).Err(ctx, w, http.StatusInternalServerError, errmsg)
 			return
 		}
 
@@ -161,7 +161,7 @@ func IntrospectHandler(secret string, next NextHandlerBuilder) http.HandlerFunc 
 		tokenString, errmsg := introParams(r)
 		if errmsg != "" {
 			w.Header().Set("WWW-Authenticate", "Bearer")
-			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusUnauthorized)
+			reply.FromContext(ctx).Err(ctx, w, http.StatusUnauthorized, errmsg)
 			return
 		}
 
@@ -179,7 +179,7 @@ func IntrospectHandler(secret string, next NextHandlerBuilder) http.HandlerFunc 
 			}
 
 			w.Header().Set("WWW-Authenticate", "Bearer")
-			reply.FromContext(ctx).Err(ctx, w, errmsg, http.StatusUnauthorized)
+			reply.FromContext(ctx).Err(ctx, w, http.StatusUnauthorized, errmsg)
 			return
 		}
 

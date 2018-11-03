@@ -18,16 +18,16 @@ var New = func() Replier {
 
 type Replier interface {
 	// Reply is the function that send response to the user.
-	Reply(ctx context.Context, w http.ResponseWriter, response interface{}, status int)
-	// Ok produces output with http.StatusOK http code.  It is shorthand for Reply(ctx, w, response, http.StatusOK).
+	Reply(ctx context.Context, w http.ResponseWriter, status int, response interface{})
+	// Ok produces output with http.StatusOK http code.  It is shorthand for Reply(ctx, w, http.StatusOK, response).
 	Ok(ctx context.Context, w http.ResponseWriter, response interface{})
 	// Err formats error response based on passed message
-	Err(ctx context.Context, w http.ResponseWriter, errmsg string, status int)
+	Err(ctx context.Context, w http.ResponseWriter, status int, errmsg string)
 }
 
 type JSONReplier struct{}
 
-func (JSONReplier) reply(ctx context.Context, w http.ResponseWriter, response io.Reader, status int) {
+func (JSONReplier) reply(ctx context.Context, w http.ResponseWriter, status int, response io.Reader) {
 	logger := log.FromContext(ctx)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -47,10 +47,10 @@ func (JSONReplier) reply(ctx context.Context, w http.ResponseWriter, response io
 	logger.Info("usage", usage...)
 }
 
-func (rpl JSONReplier) Reply(ctx context.Context, w http.ResponseWriter, response interface{}, status int) {
+func (rpl JSONReplier) Reply(ctx context.Context, w http.ResponseWriter, status int, response interface{}) {
 	// check reader
 	if reader, ok := response.(io.Reader); ok {
-		rpl.reply(ctx, w, reader, status)
+		rpl.reply(ctx, w, status, reader)
 		return
 	}
 
@@ -58,27 +58,27 @@ func (rpl JSONReplier) Reply(ctx context.Context, w http.ResponseWriter, respons
 	data, err := json.Marshal(response)
 	if err != nil {
 		log.FromContext(ctx).Error("unable marshal response", "err", err)
-		rpl.Err(ctx, w, "internal error", http.StatusInternalServerError)
+		rpl.Err(ctx, w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
 	//create reader
 	reader := bytes.NewBuffer(data)
-	rpl.reply(ctx, w, reader, status)
+	rpl.reply(ctx, w, status, reader)
 }
 
 func (rpl JSONReplier) Ok(ctx context.Context, w http.ResponseWriter, response interface{}) {
-	rpl.Reply(ctx, w, response, http.StatusOK)
+	rpl.Reply(ctx, w, http.StatusOK, response)
 }
 
-func (rpl JSONReplier) Err(ctx context.Context, w http.ResponseWriter, errmsg string, status int) {
+func (rpl JSONReplier) Err(ctx context.Context, w http.ResponseWriter, status int, errmsg string) {
 	apierr := struct {
 		Message string `json:"message"`
 	}{errmsg}
 
 	data, _ := json.Marshal(apierr)
 	reader := bytes.NewBuffer(data)
-	rpl.reply(ctx, w, reader, status)
+	rpl.reply(ctx, w, status, reader)
 }
 
 /*************** context *************/

@@ -94,7 +94,7 @@ func TestJSONReplyErr(t *testing.T) {
 	ctx := context.Background()
 	w := httptest.NewRecorder()
 
-	rpl.Err(ctx, w, "some err", http.StatusTeapot)
+	rpl.Err(ctx, w, http.StatusTeapot, "some err")
 
 	assert.Equal(t, http.StatusTeapot, w.Code)
 	assert.Equal(t, `{"message":"some err"}`, w.Body.String())
