@@ -63,7 +63,7 @@ type usageReplier struct {
 }
 
 func (rpl usageReplier) Reply(ctx context.Context, w http.ResponseWriter, status int, result io.Reader) int {
-	n := rpl.Reply(ctx, w, status, result)
+	n := rpl.Replier.Reply(ctx, w, status, result)
 
 	// log usage, add counted bytes
 	start, _ := ctx.Value(startKey).(time.Time) // can't be error

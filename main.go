@@ -8,6 +8,7 @@ import (
 
 	"github.com/Loofort/ios-back/auth"
 	"github.com/Loofort/ios-back/iap"
+	"github.com/Loofort/ios-back/mw"
 	"github.com/Loofort/ios-back/reply"
 )
 
@@ -32,8 +33,8 @@ func serveMux(rs iap.ReceiptService) *http.ServeMux {
 	apiHandler := auth.IntrospectHandler(jwtSecret, newUserHandler)
 
 	mux := &http.ServeMux{}
-	mux.Handle("/token", authHandler)
-	mux.Handle("/user", apiHandler)
+	mux.Handle("/token", mw.NewCommonHandler(authHandler))
+	mux.Handle("/user", mw.NewCommonHandler(apiHandler))
 
 	return mux
 }
