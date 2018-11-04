@@ -15,12 +15,12 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-type NextHandlerBuilder func(uuid string) http.Handler
+type NextHandlerBuilder func(uid string) http.Handler
 
 // Claims is set of values transferred by jwt
 type Claims struct {
 	jwt.StandardClaims
-	UUID string `json:"usr,omitempty"`
+	UID string `json:"uid,omitempty"`
 }
 
 // AuthenticationHandler receives receipt and verifies it. Uses receipt for authenticate and authorize the user.
@@ -84,7 +84,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 		// write claims: token body
 		claims := Claims{}
 		claims.ExpiresAt = expireToken.Unix()
-		claims.UUID = base64.RawStdEncoding.EncodeToString(user[:])
+		claims.UID = base64.RawStdEncoding.EncodeToString(user[:])
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 		// Sign and get the complete encoded token as a string using the secret
@@ -107,7 +107,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 
 		// add usage for log info purposes
 		ctx = usage.NewContext(ctx,
-			"uuid", claims.UUID,
+			"uid", claims.UID,
 			"expires_in", -int(expSec),
 		)
 		reply.FromContext(ctx).Ok(ctx, w, response)
@@ -188,10 +188,10 @@ func IntrospectHandler(secret string, next NextHandlerBuilder) http.HandlerFunc 
 		// At minimum you may want to add it to you log records.
 		// Or you may want to pass it to other middleware for performing some logic - however, avoid to use context for this kind of propagation.
 		ctx = usage.NewContext(ctx,
-			"uuid", claims.UUID,
+			"uid", claims.UID,
 		)
 
-		next(claims.UUID).ServeHTTP(w, r.WithContext(ctx))
+		next(claims.UID).ServeHTTP(w, r.WithContext(ctx))
 	}
 }
 

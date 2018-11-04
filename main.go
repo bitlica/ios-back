@@ -41,11 +41,11 @@ func serveMux(rs iap.ReceiptService) *http.ServeMux {
 /*************************** user API ***************************/
 
 type userAPI struct {
-	UUID string `json:"uuid"`
+	UID string `json:"uid"`
 }
 
-func newUserHandler(uuid string) http.Handler {
-	return userAPI{uuid}
+func newUserHandler(uid string) http.Handler {
+	return userAPI{uid}
 }
 
 func (api userAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {

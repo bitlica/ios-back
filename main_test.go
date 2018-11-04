@@ -37,7 +37,7 @@ func TestTest(t *testing.T) {
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", token))
 
 	resp = apicall(t, req)
-	if resp["uuid"].(string) == "" {
+	if resp["uid"].(string) == "" {
 		t.Fatalf("unexpected reponse: %v", resp)
 	}
 }
