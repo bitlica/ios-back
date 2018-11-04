@@ -60,21 +60,22 @@ func Ok(ctx context.Context, w http.ResponseWriter, response interface{}) {
 
 // Replier sends response to the user.
 type Replier interface {
-	Reply(ctx context.Context, w http.ResponseWriter, status int, response io.Reader)
+	Reply(ctx context.Context, w http.ResponseWriter, status int, response io.Reader) int
 }
 
 type JSONReplier struct{}
 
-func (JSONReplier) Reply(ctx context.Context, w http.ResponseWriter, status int, response io.Reader) {
+func (JSONReplier) Reply(ctx context.Context, w http.ResponseWriter, status int, response io.Reader) int {
 	logger := log.FromContext(ctx)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(status)
 
-	_, err := io.Copy(w, response)
+	n, err := io.Copy(w, response)
 	if err != nil {
 		logger.Error("unable to reply", "err", err, "type", "conn")
 	}
+	return int(n)
 }
 
 /*************** context *************/
