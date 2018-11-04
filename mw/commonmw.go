@@ -30,14 +30,7 @@ func NewCommonHandler(handler http.Handler) http.HandlerFunc {
 		// set request id
 		reqid := uuid.NewV4().String()
 		w.Header().Set("X-Request-ID", reqid)
-
-		logger := log.FromContext(ctx)
-		if lw, ok := logger.(interface {
-			With(...interface{}) log.Logger
-		}); ok {
-			logger = lw.With("reqid", reqid)
-		}
-		ctx = log.NewContext(ctx, logger)
+		ctx = log.With(ctx, "reqid", reqid)
 
 		// add usage
 		ctx = usage.NewContext(ctx,
@@ -82,7 +75,7 @@ func (rpl usageReplier) Reply(ctx context.Context, w http.ResponseWriter, status
 		"sent", n,
 		"took", int(took),
 	)
-	log.FromContext(ctx).Info("usage", usage...)
+	log.Info(ctx, "usage", usage...)
 
 	return n
 }

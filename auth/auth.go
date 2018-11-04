@@ -31,13 +31,13 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 
 		bundleID, receipt, errmsg := authParams(r)
 		if errmsg != "" {
-			reply.FromContext(ctx).Err(ctx, w, http.StatusBadRequest, errmsg)
+			reply.Err(ctx, w, http.StatusBadRequest, errmsg)
 			return
 		}
 
 		// validate bundle id
 		if len(knownBundles) > 1 && !stringInSlice(bundleID, knownBundles) {
-			reply.FromContext(ctx).Err(ctx, w, http.StatusForbidden, "unregistered bundle")
+			reply.Err(ctx, w, http.StatusForbidden, "unregistered bundle")
 			return
 		}
 
@@ -47,8 +47,8 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			errmsg := "unexpected problem during receipt verifying"
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
-			log.FromContext(ctx).Error(errmsg, "err", err, "type", "auth.iap")
-			reply.FromContext(ctx).Err(ctx, w, http.StatusInternalServerError, errmsg)
+			log.Error(ctx, errmsg, "err", err, "type", "auth.iap")
+			reply.Err(ctx, w, http.StatusInternalServerError, errmsg)
 			return
 		}
 		var active []iap.AutoRenewable
@@ -58,7 +58,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			}
 		}
 		if len(active) == 0 {
-			reply.FromContext(ctx).Err(ctx, w, http.StatusForbidden, "no active subscriptions")
+			reply.Err(ctx, w, http.StatusForbidden, "no active subscriptions")
 			return
 		}
 
@@ -93,8 +93,8 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			errmsg := "unable to create auth token"
 			// remember it's bad practice to expose internal errors.
 			// we doing this only for example purposes.
-			log.FromContext(ctx).Error(errmsg, "err", err, "type", "auth.jwt")
-			reply.FromContext(ctx).Err(ctx, w, http.StatusInternalServerError, errmsg)
+			log.Error(ctx, errmsg, "err", err, "type", "auth.jwt")
+			reply.Err(ctx, w, http.StatusInternalServerError, errmsg)
 			return
 		}
 
@@ -110,7 +110,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			"uid", claims.UID,
 			"expires_in", -int(expSec),
 		)
-		reply.FromContext(ctx).Ok(ctx, w, response)
+		reply.Ok(ctx, w, response)
 	}
 }
 
@@ -161,7 +161,7 @@ func IntrospectHandler(secret string, next NextHandlerBuilder) http.HandlerFunc 
 		tokenString, errmsg := introParams(r)
 		if errmsg != "" {
 			w.Header().Set("WWW-Authenticate", "Bearer")
-			reply.FromContext(ctx).Err(ctx, w, http.StatusUnauthorized, errmsg)
+			reply.Err(ctx, w, http.StatusUnauthorized, errmsg)
 			return
 		}
 
@@ -175,11 +175,11 @@ func IntrospectHandler(secret string, next NextHandlerBuilder) http.HandlerFunc 
 			if verr, ok := err.(*jwt.ValidationError); !ok || verr.Errors&jwt.ValidationErrorExpired == 0 {
 				errmsg = "invalid access token"
 				// log system error or hacker attack
-				log.FromContext(ctx).Error("invalid access token", "err", err, "type", "auth.invalid")
+				log.Error(ctx, "invalid access token", "err", err, "type", "auth.invalid")
 			}
 
 			w.Header().Set("WWW-Authenticate", "Bearer")
-			reply.FromContext(ctx).Err(ctx, w, http.StatusUnauthorized, errmsg)
+			reply.Err(ctx, w, http.StatusUnauthorized, errmsg)
 			return
 		}
 

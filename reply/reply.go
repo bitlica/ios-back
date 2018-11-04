@@ -50,7 +50,7 @@ func Err(ctx context.Context, w http.ResponseWriter, status int, errmsg string) 
 func Ok(ctx context.Context, w http.ResponseWriter, response interface{}) {
 	reader, err := FormatOk(response)
 	if err != nil {
-		log.FromContext(ctx).Error("unable marshal response", "err", err, "type", "reply")
+		log.Error(ctx, "unable marshal response", "err", err, "type", "reply")
 		Err(ctx, w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -66,14 +66,12 @@ type Replier interface {
 type JSONReplier struct{}
 
 func (JSONReplier) Reply(ctx context.Context, w http.ResponseWriter, status int, response io.Reader) int {
-	logger := log.FromContext(ctx)
-
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(status)
 
 	n, err := io.Copy(w, response)
 	if err != nil {
-		logger.Error("unable to reply", "err", err, "type", "conn")
+		log.Error(ctx, "unable to reply", "err", err, "type", "conn")
 	}
 	return int(n)
 }

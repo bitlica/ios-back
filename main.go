@@ -56,5 +56,5 @@ func (api userAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// reply.Ok is just a convenient helper to format json response.
 	// it is not necessary to use exactly it.
-	reply.FromContext(ctx).Ok(ctx, w, api)
+	reply.Ok(ctx, w, api)
 }
