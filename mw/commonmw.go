@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Loofort/ios-back/log"
@@ -11,10 +12,6 @@ import (
 	"github.com/Loofort/ios-back/usage"
 	"github.com/satori/go.uuid"
 )
-
-type startKeyType struct{}
-
-var startKey = startKeyType{}
 
 // CommonHandler set common midleware's capabilities:
 // - add usage logging
@@ -24,8 +21,10 @@ func NewCommonHandler(handler http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
-		// set start time
-		ctx = context.WithValue(ctx, startKey, time.Now())
+		// inject new replier that reports usage
+		replier := reply.FromContext(ctx)
+		replier = usageReplier{replier, time.Now()}
+		ctx = reply.NewContext(ctx, replier)
 
 		// set request id
 		reqid := uuid.NewV4().String()
@@ -38,11 +37,6 @@ func NewCommonHandler(handler http.Handler) http.HandlerFunc {
 			"clientIP", ExtractClientIP(r),
 		)
 
-		// inject new replier that reports usage
-		replier := reply.FromContext(ctx)
-		replier = usageReplier{replier}
-		ctx = reply.NewContext(ctx, replier)
-
 		handler.ServeHTTP(w, r.WithContext(ctx))
 	}
 }
@@ -53,21 +47,21 @@ func ExtractClientIP(r *http.Request) string {
 	// for the logging purpose we could get first one.
 	clientIP := r.Header.Get("X-Forwarded-For")
 	if clientIP == "" {
-		clientIP = r.RemoteAddr
+		clientIP = strings.Split(r.RemoteAddr, ":")[0]
 	}
 	return clientIP
 }
 
 type usageReplier struct {
 	reply.Replier
+	start time.Time
 }
 
 func (rpl usageReplier) Reply(ctx context.Context, w http.ResponseWriter, status int, result io.Reader) int {
 	n := rpl.Replier.Reply(ctx, w, status, result)
 
 	// log usage, add counted bytes
-	start, _ := ctx.Value(startKey).(time.Time) // can't be error
-	took := time.Since(start) / time.Millisecond
+	took := time.Since(rpl.start) / time.Millisecond
 
 	usage := usage.FromContext(ctx)
 	usage = append(usage,

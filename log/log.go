@@ -31,7 +31,7 @@ func With(ctx context.Context, keyValues ...interface{}) context.Context {
 		return ctx
 	}
 
-	logger := lw.With(keyValues)
+	logger := lw.With(keyValues...)
 	ctx = NewContext(ctx, logger)
 	return ctx
 }
