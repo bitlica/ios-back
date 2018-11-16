@@ -34,7 +34,7 @@ func main() {
 }
 
 func serveMux(rs iap.ReceiptService) *http.ServeMux {
-	authHandler := auth.AuthenticationHandler(jwtSecret, jwtPeriod, rs, bundleID)
+	authHandler := auth.AuthenticationHandler(jwtSecret, jwtPeriod, rs, []string{bundleID}, []string{})
 	apiHandler := auth.IntrospectHandler(jwtSecret, newUserHandler)
 
 	mux := &http.ServeMux{}
