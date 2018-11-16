@@ -54,6 +54,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 				expireToken := time.Now().Add(period)
 				user := []byte(idForVendor)
 				replyJWT(ctx, w, secret, expireToken, user)
+				return
 			}
 		}
 
