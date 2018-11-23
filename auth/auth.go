@@ -53,7 +53,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			if idForVendor != "" && stringInSlice(idForVendor, trustedDevices) {
 				expireToken := time.Now().Add(period)
 				user := []byte(idForVendor)
-				replyJWT(ctx, w, secret, expireToken, user)
+				ReplyJWT(ctx, w, secret, expireToken, user)
 				return
 			}
 		}
@@ -104,11 +104,11 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 		//  2) OriginalTransactionID may not be unique across multiple devices (or even behave like identifierForVendor ). Solution - involve WebOrderLineItemID (hard)
 		user := sha256.Sum224([]byte(sbs.OriginalTransactionID + sbs.OriginalPurchaseDate.String()))
 
-		replyJWT(ctx, w, secret, expireToken, user[:])
+		ReplyJWT(ctx, w, secret, expireToken, user[:])
 	}
 }
 
-func replyJWT(ctx context.Context, w http.ResponseWriter, secret string, expireToken time.Time, user []byte) {
+func ReplyJWT(ctx context.Context, w http.ResponseWriter, secret string, expireToken time.Time, user []byte) {
 	// write claims: token body
 	claims := Claims{}
 	claims.ExpiresAt = expireToken.Unix()
