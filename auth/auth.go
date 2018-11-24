@@ -47,15 +47,21 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			}
 		}
 
+		idForVendor := r.FormValue("identifier_for_vendor")
+		if idForVendor == "" {
+			reply.Err(ctx, w, http.StatusBadRequest, "please provide correct identifier_for_vendor")
+			return
+		}
+		ctx = usage.NewContext(ctx,
+			"device_id", idForVendor,
+		)
+
 		// check if it's trusted device, and no receipt is needed
-		if len(trustedDevices) > 1 {
-			idForVendor := r.FormValue("identifier_for_vendor")
-			if idForVendor != "" && stringInSlice(idForVendor, trustedDevices) {
-				expireToken := time.Now().Add(period)
-				user := []byte(idForVendor)
-				ReplyJWT(ctx, w, secret, expireToken, user)
-				return
-			}
+		if len(trustedDevices) > 1 && stringInSlice(idForVendor, trustedDevices) {
+			expireToken := time.Now().Add(period)
+			user := []byte(idForVendor)
+			ReplyJWT(ctx, w, secret, expireToken, user)
+			return
 		}
 
 		receipt, errmsg := readReceipt(r)
