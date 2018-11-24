@@ -64,7 +64,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			return
 		}
 
-		receipt, errmsg := readReceipt(r)
+		receipt, errmsg := ReadReceipt(r)
 		if errmsg != "" {
 			reply.Err(ctx, w, http.StatusBadRequest, errmsg)
 			return
@@ -147,7 +147,7 @@ func ReplyJWT(ctx context.Context, w http.ResponseWriter, secret string, expireT
 	reply.Ok(ctx, w, response)
 }
 
-func readReceipt(r *http.Request) (receipt []byte, errmsg string) {
+func ReadReceipt(r *http.Request) (receipt []byte, errmsg string) {
 	fr, _, err := r.FormFile("receipt")
 	if err != nil {
 		return nil, "unable to read receipt: " + err.Error()
