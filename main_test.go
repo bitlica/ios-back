@@ -53,6 +53,9 @@ func tokenRequest(t *testing.T, url string) *http.Request {
 	err = w.WriteField("bundle_id", bundleID)
 	require.NoError(t, err)
 
+	err = w.WriteField("identifier_for_vendor", "some-fictional-device-id")
+	require.NoError(t, err)
+
 	fw, err := w.CreateFormFile("receipt", "doesnt_matter_name.bin")
 	require.NoError(t, err)
 	fw.Write([]byte(receipt))

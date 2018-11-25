@@ -117,7 +117,7 @@ type ReceiptService struct {
 }
 
 // GetAutoRenewableIAPs returns actual auto-renewable subscriptions
-func (rs ReceiptService) GetAutoRenewableIAPs(ctx context.Context, receipt []byte) ([]AutoRenewable, error) {
+func (rs ReceiptService) GetAutoRenewableIAPs(ctx context.Context, receipt []byte, filter ARState) ([]AutoRenewable, error) {
 	rreq := ReceiptRequest{
 		ReceiptData:            string(receipt),
 		Password:               rs.Secret,
@@ -134,8 +134,19 @@ func (rs ReceiptService) GetAutoRenewableIAPs(ctx context.Context, receipt []byt
 		return nil, err
 	}
 
-	result := ExtractAutoRenewable(iaps)
-	return result, nil
+	subscriptions := ExtractAutoRenewable(iaps)
+	if filter == 0 {
+		return subscriptions, nil
+	}
+
+	var filtered []AutoRenewable
+	for _, sbs := range subscriptions {
+		if (sbs.State & filter) > 0 {
+			filtered = append(filtered, sbs)
+		}
+	}
+
+	return filtered, nil
 }
 
 // VerifyReceipt implements recommended approach to check snadbox request
@@ -325,7 +336,7 @@ type AutoRenewable struct {
 type ARState byte
 
 const (
-	ARActive ARState = iota
+	ARActive ARState = 1 << iota
 	ARFree
 	ARExpired
 	ARCanceled

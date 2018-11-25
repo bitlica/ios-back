@@ -35,16 +35,18 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			reply.Err(ctx, w, http.StatusBadRequest, "unable to find posted parameters: "+err.Error())
 		}
 
+		bundleID := r.FormValue("bundle_id")
+		if bundleID == "" {
+			reply.Err(ctx, w, http.StatusBadRequest, "please provide correct bundle_id")
+		}
+		ctx = usage.NewContext(ctx,
+			"bundle_id", bundleID,
+		)
+
 		// check if request is made on behalf of known app
-		if len(knownBundles) > 1 {
-			bundleID := r.FormValue("bundle_id")
-			if bundleID == "" {
-				reply.Err(ctx, w, http.StatusBadRequest, "please provide correct bundle_id")
-			}
-			if !stringInSlice(bundleID, knownBundles) {
-				reply.Err(ctx, w, http.StatusForbidden, "unregistered bundle")
-				return
-			}
+		if len(knownBundles) > 1 && !stringInSlice(bundleID, knownBundles) {
+			reply.Err(ctx, w, http.StatusForbidden, "unregistered bundle")
+			return
 		}
 
 		idForVendor := r.FormValue("identifier_for_vendor")
@@ -58,20 +60,32 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 
 		// check if it's trusted device, and no receipt is needed
 		if len(trustedDevices) > 1 && stringInSlice(idForVendor, trustedDevices) {
+			ctx = usage.NewContext(ctx,
+				"trusted", true,
+			)
 			expireToken := time.Now().Add(period)
 			user := []byte(idForVendor)
 			ReplyJWT(ctx, w, secret, expireToken, user)
 			return
 		}
 
-		receipt, errmsg := ReadReceipt(r)
+		receipt, errmsg := readReceipt(r)
 		if errmsg != "" {
 			reply.Err(ctx, w, http.StatusBadRequest, errmsg)
 			return
 		}
+		ctx = usage.NewContext(ctx,
+			"receipt_len", len(receipt),
+		)
+
+		// check if receipt valid, just check length
+		if len(receipt) == 0 {
+			reply.Err(ctx, w, http.StatusBadRequest, "please provide correct receipt")
+			return
+		}
 
 		// get all subscriptions, including expired (not sure about canceled)
-		subscriptions, err := rs.GetAutoRenewableIAPs(ctx, receipt)
+		subscriptions, err := rs.GetAutoRenewableIAPs(ctx, receipt, iap.ARActive|iap.ARFree)
 		if err != nil {
 			errmsg := "unexpected problem during receipt verifying"
 			// remember it's bad practice to expose internal errors.
@@ -80,20 +94,14 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			reply.Err(ctx, w, http.StatusInternalServerError, errmsg)
 			return
 		}
-		var active []iap.AutoRenewable
-		for _, sbs := range subscriptions {
-			if sbs.State == iap.ARActive || sbs.State == iap.ARFree {
-				active = append(active, sbs)
-			}
-		}
-		if len(active) == 0 {
+		if len(subscriptions) == 0 {
 			reply.Err(ctx, w, http.StatusForbidden, "no active subscriptions")
 			return
 		}
 
 		// in general you could have more than one auto-renewable subscription.
 		// but in this middleware we assume it's only one.
-		sbs := active[0]
+		sbs := subscriptions[0]
 		expireSubscription := sbs.SubscriptionExpirationDate.Time
 
 		// set token expire date no more than subscription expiration.
@@ -147,7 +155,7 @@ func ReplyJWT(ctx context.Context, w http.ResponseWriter, secret string, expireT
 	reply.Ok(ctx, w, response)
 }
 
-func ReadReceipt(r *http.Request) (receipt []byte, errmsg string) {
+func readReceipt(r *http.Request) (receipt []byte, errmsg string) {
 	fr, _, err := r.FormFile("receipt")
 	if err != nil {
 		return nil, "unable to read receipt: " + err.Error()
@@ -156,10 +164,6 @@ func ReadReceipt(r *http.Request) (receipt []byte, errmsg string) {
 	receipt, err = ioutil.ReadAll(fr)
 	if err != nil {
 		return nil, "unable to read receipt: " + err.Error()
-	}
-
-	if len(receipt) == 0 {
-		return nil, "please provide correct receipt"
 	}
 
 	return receipt, ""
