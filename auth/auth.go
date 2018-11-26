@@ -16,12 +16,13 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
-type NextHandlerBuilder func(uid string) http.Handler
+type NextHandlerBuilder func(uid string, freebie bool) http.Handler
 
 // Claims is set of values transferred by jwt
 type Claims struct {
 	jwt.StandardClaims
-	UID string `json:"uid,omitempty"`
+	UID     string `json:"uid,omitempty"`
+	Freebie byte   `json:"frb,omitempty"` // 0 or 1
 }
 
 // AuthenticationHandler receives receipt and verifies it. Uses receipt for authenticate and authorize the user.
@@ -29,18 +30,34 @@ type Claims struct {
 func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptService, knownBundles []string, trustedDevices []string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+		expireToken := time.Now().Add(period)
 
 		// check if we have any posted parameters
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
 			reply.Err(ctx, w, http.StatusBadRequest, "unable to find posted parameters: "+err.Error())
 		}
 
+		scope := r.FormValue("scope")
 		bundleID := r.FormValue("bundle_id")
 		if bundleID == "" {
 			reply.Err(ctx, w, http.StatusBadRequest, "please provide correct bundle_id")
 		}
+		idForVendor := r.FormValue("identifier_for_vendor")
+		if idForVendor == "" {
+			reply.Err(ctx, w, http.StatusBadRequest, "please provide correct identifier_for_vendor")
+			return
+		}
+		receipt, errmsg := readReceipt(r)
+		if errmsg != "" {
+			reply.Err(ctx, w, http.StatusBadRequest, errmsg)
+			return
+		}
+
 		ctx = usage.NewContext(ctx,
+			"scope", scope,
 			"bundle_id", bundleID,
+			"device_id", idForVendor,
+			"receipt_len", len(receipt),
 		)
 
 		// check if request is made on behalf of known app
@@ -49,34 +66,18 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			return
 		}
 
-		idForVendor := r.FormValue("identifier_for_vendor")
-		if idForVendor == "" {
-			reply.Err(ctx, w, http.StatusBadRequest, "please provide correct identifier_for_vendor")
+		if strings.Contains(scope, "limited") {
+			user := []byte(idForVendor)
+			ReplyJWT(ctx, w, secret, expireToken, user, 1)
 			return
 		}
-		ctx = usage.NewContext(ctx,
-			"device_id", idForVendor,
-		)
 
 		// check if it's trusted device, and no receipt is needed
 		if len(trustedDevices) > 1 && stringInSlice(idForVendor, trustedDevices) {
-			ctx = usage.NewContext(ctx,
-				"trusted", true,
-			)
-			expireToken := time.Now().Add(period)
 			user := []byte(idForVendor)
-			ReplyJWT(ctx, w, secret, expireToken, user)
+			ReplyJWT(ctx, w, secret, expireToken, user, 0)
 			return
 		}
-
-		receipt, errmsg := readReceipt(r)
-		if errmsg != "" {
-			reply.Err(ctx, w, http.StatusBadRequest, errmsg)
-			return
-		}
-		ctx = usage.NewContext(ctx,
-			"receipt_len", len(receipt),
-		)
 
 		// check if receipt valid, just check length
 		if len(receipt) == 0 {
@@ -102,10 +103,9 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 		// in general you could have more than one auto-renewable subscription.
 		// but in this middleware we assume it's only one.
 		sbs := subscriptions[0]
-		expireSubscription := sbs.SubscriptionExpirationDate.Time
 
 		// set token expire date no more than subscription expiration.
-		expireToken := time.Now().Add(period)
+		expireSubscription := sbs.SubscriptionExpirationDate.Time
 		if expireToken.After(expireSubscription) {
 			expireToken = expireSubscription
 		}
@@ -118,15 +118,17 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 		//  2) OriginalTransactionID may not be unique across multiple devices (or even behave like identifierForVendor ). Solution - involve WebOrderLineItemID (hard)
 		user := sha256.Sum224([]byte(sbs.OriginalTransactionID + sbs.OriginalPurchaseDate.String()))
 
-		ReplyJWT(ctx, w, secret, expireToken, user[:])
+		ReplyJWT(ctx, w, secret, expireToken, user[:], 0)
 	}
 }
 
-func ReplyJWT(ctx context.Context, w http.ResponseWriter, secret string, expireToken time.Time, user []byte) {
+func ReplyJWT(ctx context.Context, w http.ResponseWriter, secret string, expireToken time.Time, user []byte, freebie byte) {
 	// write claims: token body
-	claims := Claims{}
+	claims := Claims{
+		UID:     base64.RawStdEncoding.EncodeToString(user),
+		Freebie: freebie,
+	}
 	claims.ExpiresAt = expireToken.Unix()
-	claims.UID = base64.RawStdEncoding.EncodeToString(user)
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// Sign and get the complete encoded token as a string using the secret
@@ -217,9 +219,10 @@ func IntrospectHandler(secret string, next NextHandlerBuilder) http.HandlerFunc 
 		// Or you may want to pass it to other middleware for performing some logic - however, avoid to use context for this kind of propagation.
 		ctx = usage.NewContext(ctx,
 			"uid", claims.UID,
+			"freebie", claims.Freebie,
 		)
 
-		next(claims.UID).ServeHTTP(w, r.WithContext(ctx))
+		next(claims.UID, claims.Freebie == 1).ServeHTTP(w, r.WithContext(ctx))
 	}
 }
 
