@@ -61,7 +61,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 		)
 
 		// check if request is made on behalf of known app
-		if len(knownBundles) > 1 && !stringInSlice(bundleID, knownBundles) {
+		if len(knownBundles) > 0 && !stringInSlice(bundleID, knownBundles) {
 			reply.Err(ctx, w, http.StatusForbidden, "unregistered bundle")
 			return
 		}
@@ -73,7 +73,7 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 		}
 
 		// check if it's trusted device, and no receipt is needed
-		if len(trustedDevices) > 1 && stringInSlice(idForVendor, trustedDevices) {
+		if len(trustedDevices) > 0 && stringInSlice(idForVendor, trustedDevices) {
 			user := []byte(idForVendor)
 			ReplyJWT(ctx, w, secret, expireToken, user, 0)
 			return
