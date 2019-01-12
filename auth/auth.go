@@ -32,25 +32,9 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 		ctx := r.Context()
 		expireToken := time.Now().Add(period)
 
-		// check if we have any posted parameters
-		if err := r.ParseMultipartForm(32 << 20); err != nil {
-			reply.Err(ctx, w, http.StatusBadRequest, "unable to find posted parameters: "+err.Error())
-		}
-
-		scope := r.FormValue("scope")
-		bundleID := r.FormValue("bundle_id")
-		if bundleID == "" {
-			reply.Err(ctx, w, http.StatusBadRequest, "please provide correct bundle_id")
-		}
-		idForVendor := r.FormValue("identifier_for_vendor")
-		if idForVendor == "" {
-			reply.Err(ctx, w, http.StatusBadRequest, "please provide correct identifier_for_vendor")
-			return
-		}
-		receipt, errmsg := readReceipt(r)
+		scope, bundleID, idForVendor, receipt, errmsg := AuthParams(r)
 		if errmsg != "" {
 			reply.Err(ctx, w, http.StatusBadRequest, errmsg)
-			return
 		}
 
 		ctx = usage.NewContext(ctx,
@@ -85,41 +69,74 @@ func AuthenticationHandler(secret string, period time.Duration, rs iap.ReceiptSe
 			return
 		}
 
-		// get all subscriptions, including expired (not sure about canceled)
-		subscriptions, err := rs.GetAutoRenewableIAPs(ctx, receipt, iap.ARActive|iap.ARFree)
+		expireSubscription, user, err := AnySubscription(ctx, rs, receipt)
 		if err != nil {
-			errmsg := "unexpected problem during receipt verifying"
-			// remember it's bad practice to expose internal errors.
-			// we doing this only for example purposes.
+			// it's bad practice to expose internal errors, just log it.
 			log.Error(ctx, errmsg, "err", err, "type", "auth.iap")
-			reply.Err(ctx, w, http.StatusInternalServerError, errmsg)
+			reply.Err(ctx, w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 			return
 		}
-		if len(subscriptions) == 0 {
+		if expireSubscription.IsZero() {
 			reply.Err(ctx, w, http.StatusForbidden, "no active subscriptions")
 			return
 		}
 
-		// in general you could have more than one auto-renewable subscription.
-		// but in this middleware we assume it's only one.
-		sbs := subscriptions[0]
-
 		// set token expire date no more than subscription expiration.
-		expireSubscription := sbs.SubscriptionExpirationDate.Time
 		if expireToken.After(expireSubscription) {
 			expireToken = expireSubscription
 		}
 
-		// calculate user id:
-		//  - use OriginalTransactionID as base for user id
-		//  - if your API allow free users (without IAP), you could use identifierForVendor (aka device id)
-		// todo: clarify uncertainty:
-		//  1) OriginalTransactionID may not be unique if user has canceled purchase. Solution - add OriginalPurchaseDate (simple)
-		//  2) OriginalTransactionID may not be unique across multiple devices (or even behave like identifierForVendor ). Solution - involve WebOrderLineItemID (hard)
-		user := sha256.Sum224([]byte(sbs.OriginalTransactionID + sbs.OriginalPurchaseDate.String()))
-
-		ReplyJWT(ctx, w, secret, expireToken, user[:], 0)
+		ReplyJWT(ctx, w, secret, expireToken, user, 0)
 	}
+}
+
+func AuthParams(r *http.Request) (scope, bundleID, idForVendor string, receipt []byte, string string) {
+	// check if we have any posted parameters
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		return scope, bundleID, idForVendor, receipt, "unable to find posted parameters: " + err.Error()
+	}
+
+	scope = r.FormValue("scope")
+
+	bundleID = r.FormValue("bundle_id")
+	if bundleID == "" {
+		return scope, bundleID, idForVendor, receipt, "please provide correct bundle_id"
+	}
+
+	idForVendor = r.FormValue("identifier_for_vendor")
+	if idForVendor == "" {
+		return scope, bundleID, idForVendor, receipt, "please provide correct identifier_for_vendor"
+	}
+
+	receipt, errmsg := readReceipt(r)
+	return scope, bundleID, idForVendor, receipt, errmsg
+}
+
+// AnySubscription check if user has any paid subscription.
+// BUt in general you could have more than one auto-renewable subscription.
+func AnySubscription(ctx context.Context, rs iap.ReceiptService, receipt []byte) (time.Time, []byte, error) {
+	// get all subscriptions, including expired (not sure about canceled)
+	subscriptions, err := rs.GetAutoRenewableIAPs(ctx, receipt, iap.ARActive|iap.ARFree)
+	if err != nil {
+		return time.Time{}, nil, err
+	}
+	if len(subscriptions) == 0 {
+		return time.Time{}, nil, err
+	}
+
+	sbs := subscriptions[0]
+	// set token expire date no more than subscription expiration.
+	expireSubscription := sbs.SubscriptionExpirationDate.Time
+
+	// calculate user id:
+	//  - use OriginalTransactionID as base for user id
+	//  - if your API allow free users (without IAP), you could use identifierForVendor (aka device id)
+	// todo: clarify uncertainty:
+	//  1) OriginalTransactionID may not be unique if user has canceled purchase. Solution - add OriginalPurchaseDate (simple)
+	//  2) OriginalTransactionID may not be unique across multiple devices (or even behave like identifierForVendor ). Solution - involve WebOrderLineItemID (hard)
+	user := sha256.Sum224([]byte(sbs.OriginalTransactionID + sbs.OriginalPurchaseDate.String()))
+
+	return expireSubscription, user[:], nil
 }
 
 func ReplyJWT(ctx context.Context, w http.ResponseWriter, secret string, expireToken time.Time, user []byte, freebie byte) {
@@ -142,11 +159,17 @@ func ReplyJWT(ctx context.Context, w http.ResponseWriter, secret string, expireT
 		return
 	}
 
+	scope := "all"
+	if freebie != 0 {
+		scope = "limited"
+	}
+
 	expSec := time.Since(expireToken).Seconds()
 	response := map[string]interface{}{
 		"access_token": tokenString,
 		"token_type":   "Bearer",
 		"expires_in":   -int(expSec),
+		"scope":        scope,
 	}
 
 	// add usage for log info purposes
