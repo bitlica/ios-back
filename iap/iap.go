@@ -251,7 +251,7 @@ func (t *Time) UnmarshalJSON(buf []byte) error {
 type Receipt struct {
 	BundleID                   string `json:"bundle_id"`                    //  CFBundleIdentifier in the Info.plist file. Use to validate the receipt was indeed generated for the app.
 	ApplicationVersion         string `json:"application_version"`          // CFBundleVersion (in iOS) or CFBundleShortVersionString (in macOS) in the Info.plist.
-	OriginalApplicationVersion string `json:"original_application_version"` // In sandbox = “1.0”, CFBundleVersion (in iOS) or CFBundleShortVersionString (in macOS) in the Info.plist file when the purchase was originally made.
+	OriginalApplicationVersion string `json:"original_application_version"` // e.g. "46". In sandbox = “1.0”, CFBundleVersion (in iOS) or CFBundleShortVersionString (in macOS) in the Info.plist file when the purchase was originally made.
 
 	ReceiptCreationDate   Time `json:"receipt_creation_date_ms"` // when the app receipt was created. used to validate receipt’s signature. interpreted as an RFC 3339 date
 	ReceiptExpirationDate Time `json:"expiration_date_ms"`       // check receipt expiration: compare this date to the current date. key is present for apps purchased through the Volume Purchase Program
@@ -259,10 +259,25 @@ type Receipt struct {
 	// empty array is valid	// IAP receipt for a consumable is temporal.
 	InApp []InApp `json:"in_app"` // in-app purchase transactions: 1) from input base-64 receipt-data. 2) or in latest_receipt_info response (preferable for auto-renewable)
 
+	// undocumented fields
+	ReceiptType string `json:"receipt_type"` // "Production" (or Sandbox ?)
+	RequestDate Time   `json:"request_date_ms"`
+	DownloadId  string `json:"download_id"` // int value e.g. 84047786498306
+
+	// undocumented fields , duplicated from InApp struct (IOS 6 style ?)
+	AdamID                    string `json:"adam_id"`                     // int value. Seems the same as app_item_id
+	AppItemID                 string `json:"app_item_id"`                 // int value. e.g. 1445204797
+	VersionExternalIdentifier string `json:"version_external_identifier"` // int value e.g. 830431769
+	OriginalPurchaseDate      Time   `json:"original_purchase_date_ms"`
+
+	// example of date values
+	// "request_date":			 "2019-03-02 18:19:10 Etc/GMT",
+	// "receipt_creation_date":	 "2019-02-28 20:05:04 Etc/GMT",
+	// "original_purchase_date": "2019-02-28 19:54:05 Etc/GMT",
 }
 
 // InApp corresponds to iap transactions.
-// All fields starting with Subscription* in fact applicable only to auto-renewable purshases
+// All fields starting with Subscription* in fact applicable only to auto-renewable purchases
 // All fields names corresponds to json names except for Subscriptions*
 type InApp struct {
 	AppItemID                 string `json:"app_item_id"`                 // present only in prod for IOS apps. identify the application that created the transaction. See also Bundle Identifier.
