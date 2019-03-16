@@ -25,12 +25,12 @@ type Notification struct {
 	// Posted if the notification_type is RENEWAL or INTERACTIVE_RENEWAL, and only if the renewal is successful.
 	// Posted also if the notification_type is INITIAL_BUY.
 	// Not posted for notification_type CANCEL.
-	LatestReceipt     string            `json:"latest_receipt"`      // most recent base-64. Posted only if the notification_type is RENEWAL or INTERACTIVE_RENEWAL, and only if the renewal is successful.
-	LatestReceiptInfo NotificationInApp `json:"latest_receipt_info"` // most recent json.  Posted only if renewal is successful. Not posted for notification_type CANCEL.
+	LatestReceipt     string  `json:"latest_receipt"`      // most recent base-64. Posted only if the notification_type is RENEWAL or INTERACTIVE_RENEWAL, and only if the renewal is successful.
+	LatestReceiptInfo InAppV6 `json:"latest_receipt_info"` // most recent json.  Posted only if renewal is successful. Not posted for notification_type CANCEL.
 
 	// Posted only if the notification_type is RENEWAL or CANCEL or if renewal failed and subscription expired.
-	LatestExpiredReceipt     string            `json:"latest_expired_receipt"`      // DSIS. most recent renewal base-64. Posted only if the subscription expired.
-	LatestExpiredReceiptInfo NotificationInApp `json:"latest_expired_receipt_info"` // DSIS. most recent renewal json. Posted only if the notification_type is RENEWAL or CANCEL or if renewal failed and subscription expired.
+	LatestExpiredReceipt     string  `json:"latest_expired_receipt"`      // DSIS. most recent renewal base-64. Posted only if the subscription expired.
+	LatestExpiredReceiptInfo InAppV6 `json:"latest_expired_receipt_info"` // DSIS. most recent renewal json. Posted only if the notification_type is RENEWAL or CANCEL or if renewal failed and subscription expired.
 
 	// Check it when DID_CHANGE_RENEWAL_STATUS happend
 	AutoRenewStatus           string `json:"auto_renew_status"`                // false or true. the same as for receipt.
@@ -44,25 +44,32 @@ type Notification struct {
 	ExpirationIntent string `json:"expiration_intent"` // DSIS. reason of expiration. This is the same as the Subscription Expiration Intent in the receipt. Posted only if notification_type is RENEWAL or INTERACTIVE_RENEWAL. See also Receipt Fields.
 }
 
-type NotificationInApp struct {
-	// NotificationInApp doesn't include CancellationDate and CancellationReason
-	InApp
-
-	// instead of expires_date_ms it has expires_date (expires_date_formatted for human string)
-	SubscriptionExpirationDate Time `json:"expires_date"`
-
-	// Additional fields (seems not documented)
-	UniqueVendorIdentifier string `json:"unique_vendor_identifier"` // e.g. "FC40A4BA-F5B2-4FC0-95E5-1179A9DE7003"
-	UniqueIdentifier       string `json:"unique_identifier"`        // e.g. "1ba0ac3365f1e1b634d7ba0d35bda8fcbaf4c85f"
-	BVRS                   string `json:"bvrs"`                     // the same as Receipt's original_application_version e.g. "46"
-	BID                    string `json:"bid"`                      // the same as Receipt's bundle_id
-}
-
-func (n Notification) GetSupscription() NotificationInApp {
+func (n Notification) GetSupscription() InAppV6 {
 	if n.LatestReceipt == "" {
 		// assume type Cancel
 		return n.LatestExpiredReceiptInfo
 	}
 
 	return n.LatestReceiptInfo
+}
+
+type InAppV6 struct {
+	// inside notification it seem doesn't include CancellationDate and CancellationReason
+	// though not clear for other cases
+	InApp
+
+	ItemID         string `json:"app_item_id"`  // is it instead app_item_id ?
+	ExpirationDate Time   `json:"expires_date"` // instead of expires_date_ms
+
+	// Additional iOS 6 style fields
+	UniqueVendorIdentifier string `json:"unique_vendor_identifier"` // e.g. "FC40A4BA-F5B2-4FC0-95E5-1179A9DE7003"
+	UniqueIdentifier       string `json:"unique_identifier"`        // e.g. "1ba0ac3365f1e1b634d7ba0d35bda8fcbaf4c85f"
+	BVRS                   string `json:"bvrs"`                     // the same as Receipt's original_application_version e.g. "46"
+	BID                    string `json:"bid"`                      // the same as Receipt's bundle_id
+}
+
+func (iap InAppV6) ToV7() InApp {
+	iap.AppItemID = iap.ItemID
+	iap.ExpirationDate = iap.SubscriptionExpirationDate
+	return iap.InApp
 }

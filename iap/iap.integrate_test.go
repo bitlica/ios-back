@@ -25,7 +25,7 @@ func TestTest(t *testing.T) {
 	}
 	require.NotEmpty(t, *secret)
 
-	receipt, err := ioutil.ReadFile("testdata/receipt2.txt")
+	receipt, err := ioutil.ReadFile("testdata/freshReceipt.txt")
 
 	require.NoError(t, err)
 

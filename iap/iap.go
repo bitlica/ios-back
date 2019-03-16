@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 	"strconv"
 	"strings"
 	"time"
@@ -29,7 +30,10 @@ var receiptErrors = map[int]string{
 	21003: "The receipt could not be authenticated.",
 	21004: "The shared secret you provided does not match the shared secret on file for your account.",
 	21005: "The receipt server is not currently available.",
-	21006: "This receipt is valid but the subscription has expired.", // for iOS 6 style transaction only, so we don't care
+
+	// (checked in sandbox) expired subscription returns this 21006,
+	// in addition, the format of response returned as iOS 6 style,
+	21006: "This receipt is valid but the subscription has expired.", // for iOS 6 style transaction only
 	21007: "This receipt is from the test environment, but it was sent to the production environment for verification. Send it to the test environment instead.",
 	21008: "This receipt is from the production environment, but it was sent to the test environment for verification. Send it to the production environment instead.",
 	21010: "This receipt could not be authorized. Treat this the same as if a purchase was never made.",
@@ -68,8 +72,8 @@ func VerifyReceipt(ctx context.Context, rreq ReceiptRequest, url string, maxretr
 		return rresp, fmt.Errorf("unexpected http response code from apple server: %d", resp.StatusCode)
 	}
 
-	//dump, _ := httputil.DumpResponse(resp, true)
-	//fmt.Println("RESP ", string(dump))
+	dump, _ := httputil.DumpResponse(resp, true)
+	fmt.Println("RESP ", string(dump))
 
 	if err := json.NewDecoder(resp.Body).Decode(&rresp); err != nil {
 		return rresp, err
@@ -129,9 +133,27 @@ func (rs ReceiptService) GetAutoRenewableIAPs(ctx context.Context, receipt []byt
 		return nil, err
 	}
 
-	iaps, err := rresp.ParseLatestReceiptInfo()
-	if err != nil {
-		return nil, err
+	var iaps []InApp
+	if rresp.Status == 21006 {
+		// iOS 6 style
+		var iap InAppV6
+		err := json.Unmarshal(rresp.Receipt, &iap)
+		if err != nil {
+			return nil, err
+		}
+		iaps = append(iaps, iap.ToV7())
+
+		err = json.Unmarshal(rresp.LatesExpiredtReceiptInfo, &iap)
+		if err != nil {
+			return nil, err
+		}
+		iaps = append(iaps, iap.ToV7())
+
+	} else {
+		iaps, err = rresp.ParseLatestReceiptInfo()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	subscriptions := ExtractAutoRenewable(iaps)
@@ -178,15 +200,22 @@ type ReceiptResponse struct {
 	Receipt            json.RawMessage `json:"receipt"`
 	LatestReceiptInfo  json.RawMessage `json:"latest_receipt_info"`  // returned for receipts containing auto-renewable subscriptions. array containing all in-app purchase transactions.  excludes finished consumables.
 	PendingRenewalInfo json.RawMessage `json:"pending_renewal_info"` // pending renewal information for each auto-renewable subscription identified by the Product Identifier. Refers to a renewal scheduled in the future or failed in the past.
-	// latest_expired_receipt_info - Only returned for iOS 6 style
+
+	// iOS 6 style fields
+	LatesExpiredtReceiptInfo json.RawMessage `json:"latest_expired_receipt_info"`
+	AutoRenewProductID       string          `json:"auto_renew_product_id"`
+	AutoRenewStatus          int             `json:"auto_renew_status"`
+	CancellationReason       string          `json:"cancellation_reason,omitempty"`
+	ExpirationIntent         string          `json:"expiration_intent,omitempty"`
+	IsInBillingRetryPeriod   string          `json:"is_in_billing_retry_period,omitempty"`
 }
 
-func parse(rresp ReceiptResponse, data json.RawMessage, obj interface{}) error {
-	if err := CheckStatusError(rresp); err != nil {
-		return err
-	}
-	return json.Unmarshal(data, obj)
-}
+// func parse(rresp ReceiptResponse, data json.RawMessage, obj interface{}) error {
+// 	if err := CheckStatusError(rresp); err != nil {
+// 		return err
+// 	}
+// 	return json.Unmarshal(data, obj)
+// }
 
 func (rresp ReceiptResponse) ParseLatestReceipt() ([]byte, error) {
 	if err := CheckStatusError(rresp); err != nil {
