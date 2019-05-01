@@ -192,7 +192,8 @@ type ReceiptRequest struct {
 }
 
 type ReceiptResponse struct {
-	Status int `json:"status"`
+	Status      int    `json:"status"`
+	Environment string `json:"environment"`
 	// todo: check if it true or "true" (as a string)
 	IsRetryable        bool            `json:"is_retryable"`   // if status 21100-21199
 	LatestReceipt      []byte          `json:"latest_receipt"` // base64 PKCS #7. the latest app receipt.
