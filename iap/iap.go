@@ -370,6 +370,8 @@ type PendingRenewalInfo struct {
 	// “1” - Customer has agreed to the price increase. Subscription will renew at the higher price.
 	// “0” - Customer has not taken action regarding the increased price. Subscription expires if the customer takes no action before the renewal date.
 	SubscriptionPriceConsentStatus int `json:"price_consent_status,string"` // (not sure if this field in pending_renewal_info) only for auto-renewable if the subscription price was increased without keeping the existing price for active subscribers.
+	
+	GracePeriodDate  Time `json:"grace_period_expires_date_ms"`
 }
 
 type AutoRenewable struct {
